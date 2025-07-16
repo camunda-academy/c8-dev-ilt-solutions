@@ -102,7 +102,7 @@
       <bpmndi:BPMNShape id="BPMNShape_0ul60zx" bpmnElement="Gateway_1xthnkz" isMarkerVisible="true">
         <dc:Bounds x="405" y="95" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="459" y="93" width="82" height="14" />
+          <dc:Bounds x="389" y="73" width="82" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1p51awc" bpmnElement="Activity_1hu6sex">
@@ -110,6 +110,10 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1szrnkb" bpmnElement="Activity_16kuby1">
         <dc:Bounds x="780" y="190" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0h1cwx0" bpmnElement="Activity_1cfafq9">
+        <dc:Bounds x="510" y="190" width="100" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1n1w7tf" bpmnElement="Event_03bvprt">
         <dc:Bounds x="1302" y="102" width="36" height="36" />
@@ -140,10 +144,6 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0vw5nec_di" bpmnElement="Activity_1884gkf">
         <dc:Bounds x="990" y="310" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0h1cwx0" bpmnElement="Activity_1cfafq9">
-        <dc:Bounds x="510" y="190" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1cv2jou" bpmnElement="Event_1605nvk">
