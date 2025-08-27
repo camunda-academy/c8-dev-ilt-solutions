@@ -1,0 +1,6 @@
+{
+  "CAMUNDA_OAUTH_URL": "https://login.cloud.camunda.io/oauth/token",
+  "ZEEBE_REST_ADDRESS": "https://xxx-x.zeebe.camunda.io:443/xxxxx-xxxxx-xxxx...",
+  "ZEEBE_CLIENT_ID": "your-client-id",
+  "ZEEBE_CLIENT_SECRET": "your-client-secret"
+}
