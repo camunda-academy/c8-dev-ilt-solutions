@@ -1,57 +1,62 @@
+import { createCamundaClient } from "@camunda8/orchestration-cluster-api";
+
 const config = require('../../config.json');   /* API credentials */
-const { Camunda8 } = require('@camunda8/sdk'); /* npm i @camunda8/sdk */
 
-let client;
-
-async function connect() {
-
-    const c8 = new Camunda8(config);
-
-    return c8;
-}
+const client = createCamundaClient({
+    config: {
+        CAMUNDA_REST_ADDRESS: config.CAMUNDA_REST_ADDRESS,
+        CAMUNDA_AUTH_STRATEGY: "OAUTH",
+        CAMUNDA_CLIENT_ID: config.CAMUNDA_CLIENT_ID,
+        CAMUNDA_CLIENT_SECRET: config.CAMUNDA_CLIENT_SECRET,
+        CAMUNDA_OAUTH_URL: config.CAMUNDA_OAUTH_URL,
+        CAMUNDA_TOKEN_AUDIENCE: "zeebe.camunda.io",
+    }
+});
 
 (async () => {
-
-    const c8 = await connect();
-
-    client = c8.getCamundaRestClient();
 
     const topology = await client.getTopology();
 
     console.log(topology);
 
     client.createJobWorker({
-        type: 'credit-deduction',
-        timeout: 20000,
-        maxJobsToActivate: 1,
-        worker: 'credit-deduction-worker',
+        jobType: 'credit-deduction',
+        jobTimeoutMs: 20000,
+        maxParallelJobs: 1,
+        workerName: 'credit-deduction-worker',
         jobHandler: creditDeduction
     })
 
     client.createJobWorker({
-        type: 'credit-card-charging',
-        timeout: 20000,
-        maxJobsToActivate: 1,
-        worker: 'credit-card-worker',
+        jobType: 'credit-card-charging',
+        jobTimeoutMs: 20000,
+        maxParallelJobs: 1,
+        workerName: 'credit-card-worker',
         jobHandler: creditCardCharging
     })
 
     client.createJobWorker({
-        type: 'payment-invocation',
-        timeout: 20000,
-        maxJobsToActivate: 1,
-        worker: 'payment-invoke-worker',
-        fetchVariable: ['orderId', 'orderTotal', 'customerId', 'cardNumber', 'cvc', 'expiryDate'],
+        jobType: 'payment-invocation',
+        jobTimeoutMs: 20000,
+        maxParallelJobs: 1,
+        workerName: 'payment-invoke-worker',
         jobHandler: startPaymentProcess
     })
 
     client.createJobWorker({
-        type: 'payment-completion',
-        timeout: 20000,
-        maxJobsToActivate: 1,
-        worker: 'payment-completion-worker',
-        fetchVariable: ['orderId', 'openAmount'],
+        jobType: 'payment-completion',
+        jobTimeoutMs: 20000,
+        maxParallelJobs: 1,
+        workerName: 'payment-completion-worker',
         jobHandler: respondToOrderProcess
+    })
+
+    client.createJobWorker({
+        jobType: 'payment-failure',
+        jobTimeoutMs: 20000,
+        maxParallelJobs: 1,
+        workerName: 'payment-failre-worker',
+        jobHandler: respondToOrderProcessFail
     })
 
 })()
@@ -82,15 +87,15 @@ async function creditCardCharging(job) {
 
     if (isInvalidExpiryDate(expiryDate)) {
 
-         console.log("Invalid expiration date: " + expiryDate);
+        console.log("Invalid expiration date: " + expiryDate);
 
-         await job.error({ errorCode: "creditCardChargeError",
-                           errorMessage: "Invalid expiration date" });
+        await job.error({ errorCode: "creditCardChargeError",
+                          errorMessage: "Invalid expiration date" });
     } else {
 
-         console.log("Charged card " + cardNumber + " that expires on " + expiryDate + " and has cvc " + cvc + " with amount of " + amount + " EUR");
+        console.log("Charged card " + cardNumber + " that expires on " + expiryDate + " and has cvc " + cvc + " with amount of " + amount + " EUR");
 
-         await job.complete();
+        await job.complete();
     }
 }
 
@@ -105,6 +110,17 @@ async function startPaymentProcess(job) {
 }
 
 async function respondToOrderProcess(job) {
+
+    await client.publishMessage({ correlationKey: job.variables.orderId,
+                                  name: 'paymentCompletedMessage',
+	                                variables: job.variables });
+
+    console.log("Responding to order process...");
+
+    await job.complete();
+}
+
+async function respondToOrderProcessFail(job) {
 
     await client.publishMessage({ correlationKey: job.variables.orderId,
                                   name: 'paymentCompletedMessage',

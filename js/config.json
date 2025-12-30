@@ -1,0 +1,6 @@
+{
+  "CAMUNDA_OAUTH_URL": "https://login.cloud.camunda.io/oauth/token",
+  "CAMUNDA_REST_ADDRESS": "...",
+  "CAMUNDA_CLIENT_ID": "...",
+  "CAMUNDA_CLIENT_SECRET": "..."
+}
