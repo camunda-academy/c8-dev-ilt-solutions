@@ -1,4 +1,4 @@
-pip install pyzeebe [--proxy]
+pip install orchestration-cluster-sdk [--proxy]
 
 Fill in config.ini with your credentials (you can copy the Spring configuration from your client).
 
