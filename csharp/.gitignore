@@ -1,0 +1,20 @@
+# Build and dependency folders
+bin/
+obj/
+packages/
+
+# User-specific and IDE settings
+.vscode/
+*.suo
+*.user
+*.csproj.user
+*.sln.docstates
+.DS_Store
+
+# Logs and temp files
+*.log
+*.tmp
+
+# App settings (keep secrets local)
+appsettings.Development.json
+
