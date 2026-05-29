@@ -14,5 +14,5 @@ async def credit_card_charging_handler(job: ConnectedJobContext) -> dict[str, ob
         print(e)
         raise JobError(error_code="invalidExpiryDate", message=str(e))
     except Exception as e:
-        raise JobFailure(job.retries - 1, str(e), 2000)
+        raise JobFailure(str(e), job.retries - 1, 2000)
         
