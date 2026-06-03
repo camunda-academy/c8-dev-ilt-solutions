@@ -28,3 +28,7 @@ Thumbs.db
 target/
 
 java-spring/src/main/resources/Payment Process.bpmn
+
+# Python
+__pycache__/
+*.py[cod]
