@@ -23,9 +23,9 @@ public class CreditCardChargingWorker {
   }
 
   @JobWorker(type = "credit-card-charging", autoComplete = false)
-  public void handleCreditDeduction(JobClient client, ActivatedJob job,
-                                    @Variable String cardNumber, @Variable String expiryDate, @Variable String cvc,
-                                    @Variable Double openAmount) {
+  public void handleCreditCardCharging(JobClient client, ActivatedJob job,
+                                       @Variable String cardNumber, @Variable String expiryDate, @Variable String cvc,
+                                       @Variable Double openAmount) {
     logger.info("Job handled: {}", job.getType());
 
     creditCardService.chargeAmount(cardNumber, cvc, expiryDate, openAmount);
