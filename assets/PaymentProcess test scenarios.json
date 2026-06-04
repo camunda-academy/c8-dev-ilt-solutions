@@ -2,95 +2,17 @@
   "processId": "PaymentProcess",
   "testCases": [
     {
-      "name": "pay-with-credit-card",
-      "instructions": [
-        {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
-          "variables": {
-            "orderTotal": 45.99,
-            "customerCredit": 20
-          }
-        },
-        {
-          "type": "COMPLETE_JOB",
-          "jobSelector": {
-            "elementId": "Activity_1hu6sex",
-            "jobType": "credit-deduction"
-          }
-        },
-        {
-          "type": "COMPLETE_JOB",
-          "jobSelector": {
-            "elementId": "Activity_16kuby1",
-            "jobType": "credit-card-charging"
-          }
-        },
-        {
-          "type": "ASSERT_PROCESS_INSTANCE",
-          "processInstanceSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
-          "state": "IS_COMPLETED"
-        }
-      ],
-      "metadata": {
-        "processInstanceId": 2251799813685325,
-        "coveredFlowNodes": [
-          {
-            "flowNodeId": "Event_19qu0oi",
-            "elementType": "bpmn:StartEvent"
-          },
-          {
-            "flowNodeId": "Activity_1hu6sex",
-            "elementType": "bpmn:ServiceTask"
-          },
-          {
-            "flowNodeId": "Gateway_1xthnkz",
-            "elementType": "bpmn:ExclusiveGateway"
-          },
-          {
-            "flowNodeId": "Activity_16kuby1",
-            "elementType": "bpmn:ServiceTask"
-          },
-          {
-            "flowNodeId": "Gateway_02roc4u",
-            "elementType": "bpmn:ExclusiveGateway"
-          },
-          {
-            "flowNodeId": "Event_03bvprt",
-            "elementType": "bpmn:EndEvent"
-          }
-        ],
-        "coveredSequenceFlows": [
-          "Flow_0b7gmku",
-          "Flow_15c9io5",
-          "Flow_128mjtf",
-          "Flow_15d0kch",
-          "Flow_056mvh2"
-        ]
-      }
-    },
-    {
       "name": "pay-with-credit-only",
       "instructions": [
         {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
           "variables": {
             "orderTotal": 45.99,
-            "customerCredit": 100
-          }
-        },
-        {
-          "type": "COMPLETE_JOB",
-          "jobSelector": {
-            "elementId": "Activity_1hu6sex",
-            "jobType": "credit-deduction"
+            "customerId": "cust70",
+            "cardNumber": "1234 5678",
+            "cvc": "123",
+            "expiryDate": "09/28"
           }
         },
         {
@@ -102,7 +24,7 @@
         }
       ],
       "metadata": {
-        "processInstanceId": 2251799813685539,
+        "processInstanceId": 2251800056012206,
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -129,6 +51,70 @@
           "Flow_0b7gmku",
           "Flow_15c9io5",
           "Flow_1qqxzyh",
+          "Flow_056mvh2"
+        ]
+      }
+    },
+    {
+      "name": "pay-with-credit-card",
+      "instructions": [
+        {
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
+          "variables": {
+            "orderTotal": 45.99,
+            "customerId": "cust30",
+            "cardNumber": "1234 5678",
+            "cvc": "123",
+            "expiryDate": "09/28"
+          }
+        },
+        {
+          "type": "ASSERT_PROCESS_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": 2251800056012327,
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "Event_19qu0oi",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1hu6sex",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Gateway_1xthnkz",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_16kuby1",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Gateway_02roc4u",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Event_03bvprt",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0b7gmku",
+          "Flow_15c9io5",
+          "Flow_128mjtf",
+          "Flow_08yvuv1",
+          "Flow_15d0kch",
           "Flow_056mvh2"
         ]
       }
