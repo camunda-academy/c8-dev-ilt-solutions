@@ -1,47 +1,35 @@
-
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
-using Newtonsoft.Json;
+using Camunda.Orchestration.Sdk;
 using Camunda.Training.CSharp.Services;
 
 namespace Camunda.Training.CSharp.Workers
 {
-    public class CreditDeductionWorker(IZeebeClient client) : Worker("credit-deduction", client)
+    public class CreditDeductionWorker(CamundaClient client) : Worker("credit-deduction", client)
     {
-        public override void Handler(IJobClient jobClient, IJob activatedJob)
+        public override Task<object?> Handler(ActivatedJob job, CancellationToken ct)
         {
-            Console.WriteLine($"Handling credit-deduction job: {activatedJob.Key}");
+            Console.WriteLine($"Handling credit-deduction job: {job.JobKey}");
 
-            try
+            // Read the process variables for this job as a dictionary.
+            var variables = job.GetVariables<Dictionary<string, object>>();
+            if (variables != null
+                && variables.TryGetValue("customerId", out object? customerIdObj)
+                && variables.TryGetValue("orderTotal", out object? orderTotalObj))
             {
-                String jsonVariables = activatedJob.Variables;
-                Dictionary<string, object> variables = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonVariables);
-                if (variables.TryGetValue("customerId", out object customerIdObj) && variables.TryGetValue("orderTotal", out object orderTotalObj))
-                {
-                    // Assuming customerId is a string and orderTotal is a double
-                    string customerId = customerIdObj as string;
-                    double orderTotal = Convert.ToDouble(orderTotalObj);
-                    PrintProcessVariables(variables);
-                    CustomerService customerService = new CustomerService();
-                    double customerCredit = customerService.GetCustomerCredit(customerId);
-                    double openAmount = customerService.DeductCredit(customerCredit, orderTotal);
+                string? customerId = customerIdObj?.ToString();
+                double orderTotal = Convert.ToDouble(orderTotalObj);
 
-                    string newVariables = JsonConvert.SerializeObject(new { openAmount });
-                    jobClient.NewCompleteJobCommand(activatedJob.Key)
-                             .Variables(newVariables)
-                             .Send()
-                             .Wait();
-                }
-                else
-                {
-                    Console.WriteLine("The required keys do not exist in the dictionary.");
-                }
+                PrintProcessVariables(variables);
+
+                CustomerService customerService = new CustomerService();
+                double customerCredit = customerService.GetCustomerCredit(customerId);
+                double openAmount = customerService.DeductCredit(customerCredit, orderTotal);
+
+                // Returning this object auto-completes the job with openAmount.
+                return Task.FromResult<object?>(new { openAmount });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
-            }
+
+            Console.WriteLine("The required keys do not exist in the dictionary.");
+            return Task.FromResult<object?>(null);
         }
     }
 }

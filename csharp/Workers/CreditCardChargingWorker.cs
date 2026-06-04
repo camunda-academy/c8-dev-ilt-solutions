@@ -1,59 +1,38 @@
-
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
-using Newtonsoft.Json;
+using Camunda.Orchestration.Sdk;
 using Camunda.Training.CSharp.Services;
 
 namespace Camunda.Training.CSharp.Workers
 {
-    public class CreditCardChargingWorker(IZeebeClient client) : Worker("credit-card-charging", client)
+    public class CreditCardChargingWorker(CamundaClient client) : Worker("credit-card-charging", client)
     {
-        public override void Handler(IJobClient jobClient, IJob activatedJob)
+        public override Task<object?> Handler(ActivatedJob job, CancellationToken ct)
         {
-            Console.WriteLine($"Handling credit-card-charging job: {activatedJob.Key}");
+            Console.WriteLine($"Handling credit-card-charging job: {job.JobKey}");
 
-            try
+            // Read the process variables for this job as a dictionary.
+            var variables = job.GetVariables<Dictionary<string, object>>();
+            if (variables != null
+                && variables.TryGetValue("openAmount", out object? openAmountObj)
+                && variables.TryGetValue("cardNumber", out object? cardNumberObj)
+                && variables.TryGetValue("cvc", out object? cvcObj)
+                && variables.TryGetValue("expiryDate", out object? expiryDateObj))
             {
-                String jsonVariables = activatedJob.Variables;
+                double openAmount = Convert.ToDouble(openAmountObj);
+                string? cardNumber = cardNumberObj?.ToString();
+                string? cvc = cvcObj?.ToString();
+                string? expiryDate = expiryDateObj?.ToString();
 
-                // Deserialize JSON string to Dictionary
-                Dictionary<string, object> variables = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonVariables);
-                if (variables.TryGetValue("openAmount", out object openAmountObj)
-                    && variables.TryGetValue("cardNumber", out object cardNumberObj)
-                    && variables.TryGetValue("cvc", out object cvcObj)
-                    && variables.TryGetValue("expiryDate", out object expiryDateObj))
-                {
-                    // Assuming openAmount is a double
+                PrintProcessVariables(variables);
 
-                    double openAmount = Convert.ToDouble(openAmountObj);
-                    string? cardNumber = cardNumberObj as string;
-                    string? cvc = cvcObj as string;
-                    string? expiryDate = expiryDateObj as string;
+                CreditCardService creditCardService = new CreditCardService();
+                creditCardService.ChargeAmount(cardNumber, cvc, expiryDate, openAmount);
 
-                    PrintProcessVariables(variables);
-
-                    // Create an instance of CreditCardService and call ChargeAmount method
-                    CreditCardService creditCardService = new CreditCardService();
-                    creditCardService.ChargeAmount(cardNumber, cvc, expiryDate, openAmount);
-
-                    // Complete the job
-                    jobClient.NewCompleteJobCommand(activatedJob.Key)
-                                .Send()
-                                .Wait();
-                }
-                else
-                {
-                    Console.WriteLine("The required keys do not exist in the dictionary.");
-                }
-
-
-
+                // Returning null auto-completes the job with no variables.
+                return Task.FromResult<object?>(null);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
-            }
+
+            Console.WriteLine("The required keys do not exist in the dictionary.");
+            return Task.FromResult<object?>(null);
         }
     }
 }
