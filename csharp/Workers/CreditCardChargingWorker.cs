@@ -1,66 +1,38 @@
-
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
-using Newtonsoft.Json;
+using Camunda.Orchestration.Sdk;
 using Camunda.Training.CSharp.Services;
 using Camunda.Training.CSharp.Exceptions;
 
 namespace Camunda.Training.CSharp.Workers
 {
-    public class CreditCardChargingWorker(IZeebeClient client) : Worker("credit-card-charging", client)
-    {
-        public override void Handler(IJobClient jobClient, IJob activatedJob)
-        {
-            Console.WriteLine($"Handling credit-card-charging job: {activatedJob.Key}");
+    // Input DTO. Property names map to the BPMN process variables
+    // (System.Text.Json matches them case-insensitively, so CardNumber <-> cardNumber).
+    public record ChargingInput(double OpenAmount, string CardNumber, string Cvc, string ExpiryDate);
 
+    public class CreditCardChargingWorker(CamundaClient client) : Worker("credit-card-charging", client)
+    {
+        public override Task<object?> Handler(ActivatedJob job, CancellationToken ct)
+        {
+            Console.WriteLine($"Handling credit-card-charging job: {job.JobKey}");
+
+            // Read the process variables into a typed DTO.
+            var input = job.GetVariables<ChargingInput>();
+            Console.WriteLine($"Variables: {input}");
+
+            CreditCardService creditCardService = new CreditCardService();
             try
             {
-                String jsonVariables = activatedJob.Variables;
-
-                // Deserialize JSON string to Dictionary
-                Dictionary<string, object> variables = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonVariables);
-                if (variables.TryGetValue("openAmount", out object openAmountObj)
-                    && variables.TryGetValue("cardNumber", out object cardNumberObj)
-                    && variables.TryGetValue("cvc", out object cvcObj)
-                    && variables.TryGetValue("expiryDate", out object expiryDateObj))
-                {
-                    // Assuming openAmount is a double
-
-                    double openAmount = Convert.ToDouble(openAmountObj);
-                    string? cardNumber = cardNumberObj as string;
-                    string? cvc = cvcObj as string;
-                    string? expiryDate = expiryDateObj as string;
-
-                    PrintProcessVariables(variables);
-
-                    // Create an instance of CreditCardService and call ChargeAmount method
-                    CreditCardService creditCardService = new CreditCardService();
-                    creditCardService.ChargeAmount(cardNumber, cvc, expiryDate, openAmount);
-
-                    // Complete the job
-                    jobClient.NewCompleteJobCommand(activatedJob.Key)
-                                .Send()
-                                .Wait();
-                }
-                else
-                {
-                    Console.WriteLine("The required keys do not exist in the dictionary.");
-                }
+                creditCardService.ChargeAmount(input!.CardNumber, input.Cvc, input.ExpiryDate, input.OpenAmount);
             }
             catch (InvalidCreditCardException ex)
             {
-                Console.WriteLine($"InvalidCreditCardException occurred: {ex.Message}");
-                jobClient.NewFailCommand(activatedJob.Key)
-                    .Retries(0)
-                    .ErrorMessage(ex.Message)
-                    .Send()
-                    .Wait();
+                // Fail the job: no retries left, so an incident is raised for this job.
+                throw new JobFailureException(ex.Message, retries: 0);
+                // Alternatively, we could choose to retry a few times before incident:
+                //throw new JobFailureException(ex.Message, retries: job.Retries - 1, retryBackOffMs: 10_000);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
-            }
+
+            // Returning null auto-completes the job with no variables.
+            return Task.FromResult<object?>(null);
         }
     }
 }

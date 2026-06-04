@@ -1,50 +1,35 @@
-using Camunda.Training.CSharp.Services;
-using Newtonsoft.Json;
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
-using Zeebe.Client.Impl.Commands;
-
-using Camunda.Training.CSharp.Services;
+using Camunda.Orchestration.Sdk;
 
 namespace Camunda.Training.CSharp.Workers;
 
-public class PaymentCompletionWorker : Worker
+public class PaymentCompletionWorker(CamundaClient client) : Worker("payment-completion", client)
 {
-    public PaymentCompletionWorker(IZeebeClient client) : base("payment-completion", client) { }
-    public override void Handler(IJobClient jobClient, IJob activatedJob)
+    public override async Task<object?> Handler(ActivatedJob job, CancellationToken ct)
     {
-        Console.WriteLine("Handling payment message");
+        Console.WriteLine("Handling payment completion");
 
-        try
+        var variables = job.GetVariables<Dictionary<string, object>>();
+        if (variables != null
+            && variables.TryGetValue("orderId", out object? orderIdObj)
+            && orderIdObj?.ToString() is string orderId)
         {
-            String jsonVariables = activatedJob.Variables;
-
-            Dictionary<string, object> variables = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonVariables);
-
-            if (variables.TryGetValue("orderId", out object orderIdObj) && orderIdObj is string orderIdString)
+            // Notify the waiting Order Process that payment is complete.
+            // No need to send variables back; only the orderId correlation is needed.
+            await client.PublishMessageAsync(new MessagePublicationRequest
             {
-                client.NewPublishMessageCommand()
-                    .MessageName("paymentCompletedMessage")
-                    .CorrelationKey(orderIdString)
-                    .TimeToLive(TimeSpan.FromMinutes(5))
-                    .Send()
-                    .Wait();
+                Name = "paymentCompletedMessage",
+                CorrelationKey = orderId,
+                TimeToLive = (long)TimeSpan.FromMinutes(5).TotalMilliseconds,
+            }, ct);
 
-                Console.WriteLine("Message payment completion sent");
-
-                jobClient.NewCompleteJobCommand(activatedJob.Key)
-                    .Send()
-                    .Wait();
-            }
-            else
-            {
-                Console.WriteLine("orderId not found or not a string in the variables");
-            }
+            Console.WriteLine("Message paymentCompletedMessage sent");
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Exception occurred: {ex.Message}");
+            Console.WriteLine("orderId not found or not a string in the variables");
         }
+
+        // Returning null auto-completes the job with no variables.
+        return null;
     }
 }
