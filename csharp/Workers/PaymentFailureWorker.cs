@@ -1,48 +1,35 @@
-using Newtonsoft.Json;
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
-using Zeebe.Client.Impl.Commands;
-
-using Camunda.Training.CSharp.Services;
+using Camunda.Orchestration.Sdk;
 
 namespace Camunda.Training.CSharp.Workers;
 
-public class PaymentFailureWorker(IZeebeClient client) : Worker("payment-failure", client)
+public class PaymentFailureWorker(CamundaClient client) : Worker("payment-failure", client)
 {
-    public override void Handler(IJobClient jobClient, IJob activatedJob)
+    public override async Task<object?> Handler(ActivatedJob job, CancellationToken ct)
     {
-        Console.WriteLine("Handling payment failure message");
+        Console.WriteLine("Handling payment failure");
 
-        try
+        var variables = job.GetVariables<Dictionary<string, object>>();
+        if (variables != null
+            && variables.TryGetValue("orderId", out object? orderIdObj)
+            && orderIdObj?.ToString() is string orderId)
         {
-            String jsonVariables = activatedJob.Variables;
-
-            Dictionary<string, object> variables = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonVariables);
-
-            if (variables.TryGetValue("orderId", out object orderIdObj) && orderIdObj is string orderIdString)
+            // Notify the waiting Order Process that payment has failed.
+            // No need to send variables back; only the orderId correlation is needed.
+            await client.PublishMessageAsync(new MessagePublicationRequest
             {
-                client.NewPublishMessageCommand()
-                    .MessageName("paymentFailedMessage")
-                    .CorrelationKey(orderIdString)
-                    .TimeToLive(TimeSpan.FromMinutes(5))
-                    .Send()
-                    .Wait();
+                Name = "paymentFailedMessage",
+                CorrelationKey = orderId,
+                TimeToLive = (long)TimeSpan.FromMinutes(5).TotalMilliseconds,
+            }, ct);
 
-                Console.WriteLine("Message payment failed sent");
-
-                jobClient.NewCompleteJobCommand(activatedJob.Key)
-                    .Send()
-                    .Wait();
-            }
-            else
-            {
-                Console.WriteLine("orderId not found or not a string in the variables");
-            }
+            Console.WriteLine("Message paymentFailedMessage sent");
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Exception occurred: {ex.Message}");
+            Console.WriteLine("orderId not found or not a string in the variables");
         }
+
+        // Returning null auto-completes the job with no variables.
+        return null;
     }
 }
