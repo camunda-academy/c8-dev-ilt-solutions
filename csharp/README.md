@@ -7,7 +7,7 @@ It uses the new **Camunda C# SDK** ([`Camunda.Orchestration.Sdk`](https://docs.c
 
 ## Configuration
 
-The client is created with [zero-config](https://docs.camunda.io/docs/apis-tools/csharp-sdk/quick-start-zero-config-recommended/): it reads `CAMUNDA_*` environment variables. If none are present, it falls back to the `Camunda` section of `appsettings.json` (with `appsettings.Development.json` layered on top for local secrets).
+The client is created with [zero-config](https://docs.camunda.io/docs/apis-tools/csharp-sdk/quick-start-zero-config-recommended/): it reads `CAMUNDA_*` environment variables. If none are present, it falls back to the `Camunda` section of `appsettings.json`.
 
 ### Option 1 — Environment variables (recommended)
 
@@ -22,7 +22,7 @@ export CAMUNDA_TOKEN_AUDIENCE=zeebe.camunda.io
 
 ### Option 2 — appsettings.json fallback
 
-Fill in the `Camunda` section of `appsettings.json` (or keep secrets out of source control in the gitignored `appsettings.Development.json`):
+Fill in the `Camunda` section of `appsettings.json`:
 
 ```json
 {
