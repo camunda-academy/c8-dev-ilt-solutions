@@ -3,33 +3,27 @@ using Camunda.Training.CSharp.Services;
 
 namespace Camunda.Training.CSharp.Workers
 {
+    // Input/output DTOs. Property names map to the BPMN process variables
+    // (System.Text.Json matches them case-insensitively, so CustomerId <-> customerId).
+    public record DeductionInput(string CustomerId, double OrderTotal);
+    public record DeductionOutput(double OpenAmount);
+
     public class CreditDeductionWorker(CamundaClient client) : Worker("credit-deduction", client)
     {
         public override Task<object?> Handler(ActivatedJob job, CancellationToken ct)
         {
             Console.WriteLine($"Handling credit-deduction job: {job.JobKey}");
 
-            // Read the process variables for this job as a dictionary.
-            var variables = job.GetVariables<Dictionary<string, object>>();
-            if (variables != null
-                && variables.TryGetValue("customerId", out object? customerIdObj)
-                && variables.TryGetValue("orderTotal", out object? orderTotalObj))
-            {
-                string? customerId = customerIdObj?.ToString();
-                double orderTotal = Convert.ToDouble(orderTotalObj);
+            // Read the process variables into a typed DTO.
+            var input = job.GetVariables<DeductionInput>();
+            Console.WriteLine($"Variables: {input}");
 
-                PrintProcessVariables(variables);
+            CustomerService customerService = new CustomerService();
+            double customerCredit = customerService.GetCustomerCredit(input!.CustomerId);
+            double openAmount = customerService.DeductCredit(customerCredit, input.OrderTotal);
 
-                CustomerService customerService = new CustomerService();
-                double customerCredit = customerService.GetCustomerCredit(customerId);
-                double openAmount = customerService.DeductCredit(customerCredit, orderTotal);
-
-                // Returning this object auto-completes the job with openAmount.
-                return Task.FromResult<object?>(new { openAmount });
-            }
-
-            Console.WriteLine("The required keys do not exist in the dictionary.");
-            return Task.FromResult<object?>(null);
+            // Returning this DTO auto-completes the job with openAmount.
+            return Task.FromResult<object?>(new DeductionOutput(openAmount));
         }
     }
 }

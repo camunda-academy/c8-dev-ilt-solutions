@@ -30,15 +30,6 @@ namespace Camunda.Training.CSharp.Workers
             Console.WriteLine($"Worker '{jobType}' started");
         }
 
-        protected void PrintProcessVariables(IReadOnlyDictionary<string, object> variables)
-        {
-            Console.WriteLine($"Process variables for {jobType}:");
-            foreach (var variable in variables)
-            {
-                Console.WriteLine($"   {variable.Key}: {variable.Value}");
-            }
-        }
-
         /// <summary>
         /// Handles an activated job. The returned object auto-completes the job
         /// with those variables; return <c>null</c> to complete with no variables.
