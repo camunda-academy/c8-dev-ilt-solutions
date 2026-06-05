@@ -8,9 +8,17 @@ public class CreditCardService {
     private static final Logger logger = LoggerFactory.getLogger(CreditCardService.class);
 
     public void chargeAmount(String cardNumber, String cvc, String expiryDate, Double amount) {
-        logger.info("Charging card {} that expires on {} and has a CVC {} with an amount of {} {}",
-                cardNumber, expiryDate, cvc, amount, System.lineSeparator());
+        if (isExpiryDateValid(expiryDate)) {
+            logger.info("Charging card {} that expires on {} and has a CVC {} with an amount of {} {}",
+                    cardNumber, expiryDate, cvc, amount, System.lineSeparator());
 
-        logger.info("Payment completed");
+            logger.info("Payment completed");
+        } else {
+            throw new IllegalArgumentException("Expiry date invalid: " + expiryDate);
+        }
+    }
+
+    private boolean isExpiryDateValid(String expiryDate) {
+        return expiryDate.length() == 5;
     }
 }

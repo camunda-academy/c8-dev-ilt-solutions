@@ -7,6 +7,7 @@ import io.camunda.training.services.CreditCardService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Map;
 
 public class CreditCardChargingWorker implements JobHandler {
@@ -29,8 +30,16 @@ public class CreditCardChargingWorker implements JobHandler {
         String cvc = (String) variables.get("cvc");
         Double openAmount = ((Number) variables.get("openAmount")).doubleValue();
 
-        creditCardService.chargeAmount(cardNumber, cvc, expiryDate, openAmount);
+        try {
+            creditCardService.chargeAmount(cardNumber, cvc, expiryDate, openAmount);
 
-        client.newCompleteCommand(job).send();
+            client.newCompleteCommand(job).send();
+        } catch (IllegalArgumentException exception) {
+            client.newFailCommand(job.getKey())
+                    .retries(0)
+                    .retryBackoff(Duration.ZERO)
+                    .errorMessage(exception.getMessage())
+                    .send().join();
+        }
     }
 }
