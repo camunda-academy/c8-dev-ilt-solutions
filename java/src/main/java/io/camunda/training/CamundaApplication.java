@@ -7,6 +7,7 @@ import io.camunda.training.services.CustomerService;
 import io.camunda.training.workers.CreditCardChargingWorker;
 import io.camunda.training.workers.CreditDeductionWorker;
 import io.camunda.training.workers.PaymentCompletionWorker;
+import io.camunda.training.workers.PaymentFailureWorker;
 import io.camunda.training.workers.PaymentInvocationWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,11 @@ public class CamundaApplication {
          JobWorker paymentCompletionWorker = client.newWorker()
                  .jobType("payment-completion")
                  .handler(new PaymentCompletionWorker(client))
+                 .open();
+
+         JobWorker paymentFailureWorker = client.newWorker()
+                 .jobType("payment-failure")
+                 .handler(new PaymentFailureWorker(client))
                  .open()) {
       logger.info("Workers started, waiting for jobs...");
 

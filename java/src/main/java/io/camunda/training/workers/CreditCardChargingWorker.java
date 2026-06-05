@@ -34,12 +34,16 @@ public class CreditCardChargingWorker implements JobHandler {
             creditCardService.chargeAmount(cardNumber, cvc, expiryDate, openAmount);
 
             client.newCompleteCommand(job).send();
-        } catch (IllegalArgumentException exception) {
-            client.newFailCommand(job.getKey())
+        } catch (IllegalArgumentException illegalArgumentException) {
+            client.newThrowErrorCommand(job)
+                    .errorCode("creditCardChargeError")
+                    .send();
+        } catch (Exception e) {
+            client.newFailCommand(job)
                     .retries(0)
                     .retryBackoff(Duration.ZERO)
-                    .errorMessage(exception.getMessage())
-                    .send().join();
+                    .errorMessage(e.getMessage())
+                    .send();
         }
     }
 }
