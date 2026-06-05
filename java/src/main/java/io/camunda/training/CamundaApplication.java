@@ -6,6 +6,8 @@ import io.camunda.training.services.CreditCardService;
 import io.camunda.training.services.CustomerService;
 import io.camunda.training.workers.CreditCardChargingWorker;
 import io.camunda.training.workers.CreditDeductionWorker;
+import io.camunda.training.workers.PaymentCompletionWorker;
+import io.camunda.training.workers.PaymentInvocationWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,16 @@ public class CamundaApplication {
          JobWorker creditCardWorker = client.newWorker()
                  .jobType("credit-card-charging")
                  .handler(new CreditCardChargingWorker(creditCardService))
+                 .open();
+
+         JobWorker paymentInvocationWorker = client.newWorker()
+                 .jobType("payment-invocation")
+                 .handler(new PaymentInvocationWorker(client))
+                 .open();
+
+         JobWorker paymentCompletionWorker = client.newWorker()
+                 .jobType("payment-completion")
+                 .handler(new PaymentCompletionWorker(client))
                  .open()) {
       logger.info("Workers started, waiting for jobs...");
 
