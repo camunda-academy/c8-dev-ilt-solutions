@@ -1,19 +1,16 @@
-using Zeebe.Client;
-using Zeebe.Client.Api.Responses;
-using Zeebe.Client.Api.Worker;
+using Camunda.Orchestration.Sdk;
 
 namespace Camunda.Training.CSharp.Workers
 {
-    public class CreditCardChargingWorker(IZeebeClient client) : Worker("credit-card-charging", client)
+    public class CreditCardChargingWorker(CamundaClient client) : Worker("credit-card-charging", client)
     {
-        public override void Handler(IJobClient jobClient, IJob activatedJob)
+        public override Task<object?> Handler(ActivatedJob job, CancellationToken ct)
         {
-            Console.WriteLine($"Handling credit-card-charging job: {activatedJob.Key}");
+            Console.WriteLine($"Handling credit-card-charging job: {job.JobKey}");
 
-            jobClient.NewCompleteJobCommand(activatedJob.Key)
-                         .Variables("{}")
-                         .Send()
-                         .Wait();
+            // Returning null auto-completes the job with no variables.
+            // We'll change this in the next lesson to return some variables for the process to use.
+            return Task.FromResult<object?>(null);
         }
     }
 }

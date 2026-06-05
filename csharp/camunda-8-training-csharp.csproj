@@ -8,7 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="zb-client" Version="2.9.0" />
+    <!-- New Camunda C# SDK (technical preview until 8.10). Replaces zb-client. -->
+    <PackageReference Include="Camunda.Orchestration.Sdk" Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

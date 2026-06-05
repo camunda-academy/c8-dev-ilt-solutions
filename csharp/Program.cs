@@ -1,7 +1,5 @@
+using Camunda.Orchestration.Sdk;
 using Camunda.Training.CSharp.Workers;
-using Zeebe.Client;
-using Zeebe.Client.Impl.Builder;
-
 
 namespace Camunda.Training.CSharp
 {
@@ -9,37 +7,56 @@ namespace Camunda.Training.CSharp
     {
         public static async Task Main(string[] args)
         {
-            var configuration = BuildConfiguration();
-            var clientId = configuration["ZeebeClientConfig:ClientId"];
-            var clientSecret = configuration["ZeebeClientConfig:ClientSecret"];
-            var contactPoint = configuration["ZeebeClientConfig:ContactPoint"];
-
-            var client = CamundaCloudClientBuilder
-            .Builder()
-            .UseClientId(clientId)
-            .UseClientSecret(clientSecret)
-            .UseContactPoint(contactPoint)
-            .Build();
+            using var client = CreateClient();
 
             Console.WriteLine("Connecting to Camunda...");
-            var topology = await client.TopologyRequest().Send();
-            Console.WriteLine($"Connected! {topology}");
+            var topology = await client.GetTopologyAsync();
+            Console.WriteLine($"Connected! Brokers: {topology.Brokers?.Count ?? 0}");
 
-            var creditDeductionWorker = new CreditDeductionWorker(client);
-            var creditCardChargingWorker = new CreditCardChargingWorker(client);
+            // Register the workers against the running client.
+            new CreditDeductionWorker(client);
+            new CreditCardChargingWorker(client);
 
             Console.WriteLine("Workers started. Press Ctrl+C to exit.");
 
-            using var signal = new EventWaitHandle(false, EventResetMode.AutoReset);
-            signal.WaitOne();
+            // Block until Ctrl+C, then stop all workers gracefully.
+            using var cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+            await client.RunWorkersAsync(ct: cts.Token);
         }
 
-        private static IConfiguration BuildConfiguration()
+        /// <summary>
+        /// Creates the Camunda client using zero-config (CAMUNDA_* environment
+        /// variables). If no Camunda environment variables are present, falls back
+        /// to the "Camunda" section of appsettings.json.
+        /// </summary>
+        private static CamundaClient CreateClient()
         {
-            return new ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-            .Build();
+            if (HasCamundaEnvironment())
+            {
+                Console.WriteLine("Using zero-config (CAMUNDA_* environment variables)...");
+                return CamundaClient.Create();
+            }
+
+            Console.WriteLine("No CAMUNDA_* environment variables found; falling back to appsettings.json...");
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .Build();
+
+            return CamundaClient.Create(new CamundaOptions
+            {
+                Configuration = configuration.GetSection("Camunda"),
+            });
+        }
+
+        private static bool HasCamundaEnvironment()
+        {
+            return Environment.GetEnvironmentVariables()
+                .Keys
+                .Cast<string>()
+                .Any(key => key.StartsWith("CAMUNDA_", StringComparison.OrdinalIgnoreCase));
         }
     }
 }
