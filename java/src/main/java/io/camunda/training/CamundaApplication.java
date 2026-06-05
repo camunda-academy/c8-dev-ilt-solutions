@@ -2,6 +2,8 @@ package io.camunda.training;
 
 import io.camunda.client.CamundaClient;
 import io.camunda.client.api.worker.JobWorker;
+import io.camunda.training.services.CreditCardService;
+import io.camunda.training.services.CustomerService;
 import io.camunda.training.workers.CreditCardChargingWorker;
 import io.camunda.training.workers.CreditDeductionWorker;
 import org.slf4j.Logger;
@@ -20,6 +22,9 @@ public class CamundaApplication {
       props.load(in);
     }
 
+    CreditCardService creditCardService = new CreditCardService();
+    CustomerService customerService = new CustomerService();
+
     try (CamundaClient client = CamundaClient.newCloudClientBuilder()
             .withClusterId(props.getProperty("camunda.client.cloud.cluster-id"))
             .withClientId(props.getProperty("camunda.client.auth.client-id"))
@@ -29,12 +34,12 @@ public class CamundaApplication {
 
          JobWorker creditDeductionWorker = client.newWorker()
                  .jobType("credit-deduction")
-                 .handler(new CreditDeductionWorker())
+                 .handler(new CreditDeductionWorker(customerService))
                  .open();
 
          JobWorker creditCardWorker = client.newWorker()
                  .jobType("credit-card-charging")
-                 .handler(new CreditCardChargingWorker())
+                 .handler(new CreditCardChargingWorker(creditCardService))
                  .open()) {
       logger.info("Workers started, waiting for jobs...");
 
