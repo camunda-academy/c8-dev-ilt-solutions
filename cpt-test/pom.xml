@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.camunda.training</groupId>
+  <artifactId>cpt-test</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>c8-dev-ilt-solutions :: CPT tests</name>
+  <description>
+    Camunda Process Test (CPT) suite that verifies the Order/Payment process solutions
+    end-to-end against the REAL job workers (python / csharp / js). The workers are
+    started manually and connect to a local Camunda runtime; CPT connects to the same
+    runtime in "remote" mode, drives the process, and asserts the outcome.
+  </description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+
+    <!-- 8.10.0-alpha3-rc2: needed for the CPT JSON test-case replay API (TestCasesReader /
+         CamundaTestCaseRunner), not yet in a stable release. Bump here only. -->
+    <camunda.version>8.10.0-alpha3-rc2</camunda.version>
+
+    <junit.version>5.11.4</junit.version>
+    <assertj.version>3.27.3</assertj.version>
+    <surefire.version>3.5.2</surefire.version>
+  </properties>
+
+  <dependencies>
+    <!-- Camunda Process Test (CPT) — the successor to the deprecated Zeebe Process Test. -->
+    <dependency>
+      <groupId>io.camunda</groupId>
+      <artifactId>camunda-process-test-java</artifactId>
+      <version>${camunda.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JSON test-case model + reader (TestCasesReader) for replaying Camunda Play scenario
+         exports (e.g. PaymentProcess-scenarios.json) as CPT test cases. -->
+    <dependency>
+      <groupId>io.camunda</groupId>
+      <artifactId>camunda-process-test-json-test-cases</artifactId>
+      <version>${camunda.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JUnit 5 (mandatory for CPT). -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- JUnit 5 Suite engine — runs all Exercise tests together via @Suite. -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite</artifactId>
+      <version>1.11.4</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Plain assertions for reading scenario JSON etc. -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <!-- Pass the chosen language through to the tests: -Dlang=python|csharp|js|all -->
+          <systemPropertyVariables>
+            <lang>${lang}</lang>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- Default the 'lang' property so `mvn test` without -Dlang doesn't fail property resolution. -->
+  <profiles>
+    <profile>
+      <id>default-lang</id>
+      <activation>
+        <property>
+          <name>!lang</name>
+        </property>
+      </activation>
+      <properties>
+        <lang>all</lang>
+      </properties>
+    </profile>
+  </profiles>
+
+</project>

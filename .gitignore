@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Java / Maven build output
+target/
+
+# CPT test runner output
+cpt-test/results/
+
+# git worktree scratch dir used by the all-exercises runner (see all-exercises-runner-plan)
+/tmp/
