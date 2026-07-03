@@ -47,7 +47,7 @@ exec docker run --rm --name "${NAME}" \
   -p 26500:26500 \
   -p 8080:8080 \
   -p 9600:9600 \
-  -e SPRING_PROFILES_ACTIVE=broker,consolidated-auth,operate,tasklist,identity \
+  -e SPRING_PROFILES_ACTIVE=broker \
   -e CAMUNDA_DATA_SECONDARYSTORAGE_TYPE=rdbms \
   -e CAMUNDA_DATA_SECONDARYSTORAGE_RDBMS_URL='jdbc:h2:mem:camunda;DB_CLOSE_DELAY=-1' \
   -e CAMUNDA_DATA_SECONDARYSTORAGE_RDBMS_USERNAME=sa \

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# Runs ONE exercise (Exercise05) against every available language.
+# Runs ONE exercise against every available language. The exercise is determined by the branch
+# checked out in WORKTREE (e.g. a branch named "exercise-07" tests Exercise07Test).
 # (A future run-all.sh may loop this over all exercises.)
 #
 # For each available language implementation it:
 #   1. (once) starts a local Camunda runtime via Docker
 #   2. starts that language's worker in the background, pointed at the runtime (no auth)
-#   3. runs the CPT tests against it  (mvn test -Dtest=Exercise05Test -Dlang=<lang>)
+#   3. runs the CPT tests against it  (mvn test -Dtest=ExerciseNNTest -Dlang=<lang>)
 #   4. stops the worker
 # and finally writes a combined Markdown report plus per-language Surefire + coverage reports.
 #
@@ -17,6 +18,10 @@
 #                                      # `git worktree` of an exercise-NN branch, when this harness
 #                                      # lives on its own branch — see ALL-EXERCISES-PLAN.md).
 #                                      # Defaults to this script's own repo (cpt-test's sibling dir).
+#                                      # The exercise under test is read from WORKTREE's checked-out
+#                                      # branch name (must match exercise-NN); if that branch has no
+#                                      # ExerciseNNTest class yet, the run is skipped with a clear
+#                                      # message rather than failing.
 #
 # Languages with no implementation on this branch (java, java-spring) or whose toolchain/deps are
 # not installed are SKIPPED (reported, not failed). One worker runs at a time so they don't compete
@@ -30,6 +35,25 @@ REPO_ROOT="$(cd "${CPT_DIR}/.." && pwd)"
 WORKTREE="$(cd "${WORKTREE:-${REPO_ROOT}}" && pwd)"
 RESULTS_DIR="${CPT_DIR}/results"
 REPORT_MD="${RESULTS_DIR}/report.md"
+
+# ---- which exercise ------------------------------------------------------------
+# Derived from WORKTREE's checked-out branch name (e.g. "exercise-07" -> "07" -> Exercise07Test).
+WORKTREE_BRANCH="$(git -C "${WORKTREE}" branch --show-current 2>/dev/null)"
+EXERCISE_NUM="$(sed -nE 's/^exercise-([0-9]+)$/\1/p' <<<"${WORKTREE_BRANCH}")"
+if [[ -z "${EXERCISE_NUM}" ]]; then
+  echo "[err] WORKTREE (${WORKTREE}) is not checked out to an 'exercise-NN' branch (got: '${WORKTREE_BRANCH:-<none>}')." >&2
+  exit 1
+fi
+EXERCISE_CLASS="Exercise${EXERCISE_NUM}Test"
+EXERCISE_REPLAY_CLASS="Exercise${EXERCISE_NUM}ScenarioReplayTest"
+TEST_CLASSES="${EXERCISE_CLASS}"
+[[ -f "${CPT_DIR}/src/test/java/com/camunda/training/${EXERCISE_REPLAY_CLASS}.java" ]] \
+  && TEST_CLASSES="${EXERCISE_CLASS},${EXERCISE_REPLAY_CLASS}"
+if [[ ! -f "${CPT_DIR}/src/test/java/com/camunda/training/${EXERCISE_CLASS}.java" ]]; then
+  echo "[err] No ${EXERCISE_CLASS}.java in cpt-test yet — exercise-${EXERCISE_NUM} has no CPT test written." >&2
+  exit 1
+fi
+JS_WORKER_FILE="exercise_${EXERCISE_NUM}.ts"
 
 # ---- runtime config ----------------------------------------------------------
 IMAGE="camunda/camunda:8.10.0-alpha3-rc2"
@@ -92,7 +116,7 @@ start_runtime() {
   docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
   docker run -d --name "${CONTAINER}" \
     -p 26500:26500 -p 8080:8080 -p 9600:9600 \
-    -e SPRING_PROFILES_ACTIVE=broker,consolidated-auth,operate,tasklist,identity \
+    -e SPRING_PROFILES_ACTIVE=broker \
     -e CAMUNDA_DATA_SECONDARYSTORAGE_TYPE=rdbms \
     -e CAMUNDA_DATA_SECONDARYSTORAGE_RDBMS_URL='jdbc:h2:mem:camunda;DB_CLOSE_DELAY=-1' \
     -e CAMUNDA_DATA_SECONDARYSTORAGE_RDBMS_USERNAME=sa \
@@ -133,7 +157,7 @@ lang_available() {
       command -v dotnet >/dev/null || { SKIP_REASON="dotnet not found"; return 1; }
       ;;
     js)
-      [[ -f "${WORKTREE}/js/src/workers/exercise_5.ts" ]] || { SKIP_REASON="no js worker source"; return 1; }
+      [[ -f "${WORKTREE}/js/src/workers/${JS_WORKER_FILE}" ]] || { SKIP_REASON="no js/src/workers/${JS_WORKER_FILE}"; return 1; }
       command -v npx >/dev/null || { SKIP_REASON="npx not found"; return 1; }
       [[ -d "${WORKTREE}/js/node_modules" ]] || { SKIP_REASON="js/node_modules missing (run 'npm install' in js/)"; return 1; }
       ;;
@@ -161,7 +185,7 @@ lang_start() {
     js)
       ( cd "${WORKTREE}/js" && \
         CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_AUTH_STRATEGY=NONE \
-        npx ts-node --transpile-only src/workers/exercise_5.ts ) >"${logfile}" 2>&1 &
+        npx ts-node --transpile-only "src/workers/${JS_WORKER_FILE}" ) >"${logfile}" 2>&1 &
       ;;
     java-spring)
       ( cd "${WORKTREE}/java-spring" && \
@@ -247,7 +271,7 @@ for lang in "${REQUESTED[@]}"; do
   fi
 
   log "[${lang}] running tests"
-  ( cd "${CPT_DIR}" && mvn -B test -Dtest=Exercise05Test,Exercise05ScenarioReplayTest \
+  ( cd "${CPT_DIR}" && mvn -B test "-Dtest=${TEST_CLASSES}" \
       "-Dlang=${lang}" "-DworktreeDir=${WORKTREE}" ) \
     >"${LANG_RESULTS}/maven.log" 2>&1
   MVN_RC=$?

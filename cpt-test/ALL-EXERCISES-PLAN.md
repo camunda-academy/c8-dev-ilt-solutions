@@ -54,6 +54,39 @@ user-facing version of this (prerequisites, command, expected output).
   still deploys `Payment Process.bpmn` by name via `addResourceFile`. Fine for one BPMN per exercise;
   revisit if an exercise needs multiple deployable files.
 
+**Fixed 2026-07-03 (real bug, caught by the user, not by design): `run-exercise.sh` still hardcoded
+exercise-05.** Adding `WORKTREE=` (above) generalized the *worker code path*, but the JS worker
+filename (`exercise_5.ts`) and the Java test class (`Exercise05Test,Exercise05ScenarioReplayTest`)
+were left as literal strings — meaning the script only ever tested exercise-05 regardless of which
+branch `WORKTREE` pointed at. Fixed by deriving the exercise number from `WORKTREE`'s checked-out
+branch name (`git -C "$WORKTREE" branch --show-current`, must match `exercise-NN`) and:
+- Building `JS_WORKER_FILE="exercise_${EXERCISE_NUM}.ts"` for the JS `lang_available`/`lang_start`
+  checks (previously hardcoded `exercise_5.ts`).
+- Building `TEST_CLASSES` from `Exercise${EXERCISE_NUM}Test` (+ `Exercise${EXERCISE_NUM}
+  ScenarioReplayTest` if that class exists in `cpt-test/src/test/java/...`), passed as `-Dtest=` to
+  `mvn test`.
+- If `WORKTREE`'s branch doesn't match `exercise-NN`, or `Exercise${EXERCISE_NUM}Test.java` doesn't
+  exist in `cpt-test` yet, the script exits early with a clear message (before starting Docker/any
+  worker) rather than silently testing the wrong exercise or crashing deep into a run.
+Validated: ran successfully against `exercise-05` (3/3 passed) and correctly refused to run against
+`exercise-06` (no `Exercise06Test.java` written yet — exits cleanly with an explanatory message).
+
+**Also fixed 2026-07-03 (user's second catch): `SPRING_PROFILES_ACTIVE` was heavier than needed.**
+Both `start-runtime.sh` and `run-exercise.sh` booted
+`broker,consolidated-auth,operate,tasklist,identity`. Researched against Camunda's own architecture
+docs and internal testcontainer defaults: in the 8.8+ unified distribution the `broker` profile alone
+serves the v2 REST API (deploy/create-instance/search) and the RDBMS exporter `CamundaAssert` reads
+from — `operate`/`tasklist` are UI-webapp-only profiles, `consolidated-auth`/`identity` govern the
+shared login/authorization layer which is moot under
+`CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTEDAPI=true` +
+`CAMUNDA_SECURITY_AUTHORIZATIONS_ENABLED=false` (already set). Changed both scripts to
+`SPRING_PROFILES_ACTIVE=broker` alone. Validated: re-ran the exercise-05 end-to-end test with only
+`broker` active — still 3/3 passed. Caveat from the research: this is inferred from Camunda's
+internal test scaffolding (`broker,standalone` in `camunda/camunda`'s own `CamundaContainer.java`),
+not from an explicit "minimal CI profile" doc page — re-verify if a future Camunda version changes
+this, or if an exercise ever needs user-task/Tasklist-specific behavior (none do today — all
+exercises 05-12 are service-task only).
+
 ## Per-language state on `exercise-05` (as of 2026-07-03)
 
 All 4 languages validated end-to-end (`Exercise05Test` 2/2 + `Exercise05ScenarioReplayTest` 1/1,
