@@ -32,3 +32,8 @@ java-spring/src/main/resources/Payment Process.bpmn
 # Python
 __pycache__/
 *.py[cod]
+.venv/
+
+# Node
+node_modules/
+npm-debug.log*
