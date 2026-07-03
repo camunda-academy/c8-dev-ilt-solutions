@@ -18,28 +18,35 @@ import os
 
 async def main():
 
-    # Get Config
+    # Env vars present (e.g. CPT tests pointing at a local runtime) -> zero-config: let the SDK
+    # read CAMUNDA_* from the environment. Otherwise fall back to the SaaS config.ini below.
+    if os.environ.get("CAMUNDA_REST_ADDRESS") or os.environ.get("CAMUNDA_CLIENT_ID"):
+        camunda_client_cm = CamundaAsyncClient()
+    else:
+        # Get Config
 
-    config = configparser.ConfigParser()
-    config_path = Path(__file__).parent / "config.ini"
-    config.read(config_path)
+        config = configparser.ConfigParser()
+        config_path = Path(__file__).parent / "config.ini"
+        config.read(config_path)
 
-    client_id = config["camunda"]["camunda.client.auth.client-id"]
-    client_secret = config["camunda"]["camunda.client.auth.client-secret"]
-    cluster_id = config["camunda"]["camunda.client.cloud.cluster-id"]
-    region = config["camunda"]["camunda.client.cloud.region"]
+        client_id = config["camunda"]["camunda.client.auth.client-id"]
+        client_secret = config["camunda"]["camunda.client.auth.client-secret"]
+        cluster_id = config["camunda"]["camunda.client.cloud.cluster-id"]
+        region = config["camunda"]["camunda.client.cloud.region"]
+
+        camunda_client_cm = CamundaAsyncClient(
+            configuration={
+                "CAMUNDA_REST_ADDRESS": f"https://{region}.zeebe.camunda.io/{cluster_id}",
+                "CAMUNDA_CLIENT_ID": client_id,
+                "CAMUNDA_CLIENT_SECRET": client_secret,
+                "CAMUNDA_AUTH_STRATEGY": "OAUTH",
+                "CAMUNDA_OAUTH_URL": "https://login.cloud.camunda.io/oauth/token",
+                "CAMUNDA_TOKEN_AUDIENCE": "zeebe.camunda.io",
+            }
+        )
 
     # Set up client
-    async with CamundaAsyncClient(
-        configuration={
-            "CAMUNDA_REST_ADDRESS": f"https://{region}.zeebe.camunda.io/{cluster_id}",
-            "CAMUNDA_CLIENT_ID": client_id,
-            "CAMUNDA_CLIENT_SECRET": client_secret,
-            "CAMUNDA_AUTH_STRATEGY": "OAUTH",
-            "CAMUNDA_OAUTH_URL": "https://login.cloud.camunda.io/oauth/token",
-            "CAMUNDA_TOKEN_AUDIENCE": "zeebe.camunda.io",
-        }
-    ) as camunda_client:
+    async with camunda_client_cm as camunda_client:
         # Worker 1 (example):
         camunda_client.create_job_worker(
             WorkerConfig(job_type="example-job-type", job_timeout_milliseconds=10_000),
