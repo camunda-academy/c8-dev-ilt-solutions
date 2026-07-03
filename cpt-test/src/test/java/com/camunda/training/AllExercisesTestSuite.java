@@ -12,5 +12,10 @@ import org.junit.platform.suite.api.Suite;
  * on the current branch.
  */
 @Suite
-@SelectClasses({Exercise05Test.class})
+@SelectClasses({
+  Exercise05Test.class,
+  Exercise05ScenarioReplayTest.class,
+  Exercise06Test.class,
+  Exercise06ScenarioReplayTest.class
+})
 class AllExercisesTestSuite {}
