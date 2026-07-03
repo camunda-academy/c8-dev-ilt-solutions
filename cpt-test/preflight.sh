@@ -8,15 +8,17 @@
 # Usage:
 #   ./preflight.sh            # check everything
 #   ./preflight.sh python js  # check core tools + only these languages
+#   WORKTREE=../tmp ./preflight.sh   # worker code lives in a separate checkout — see run-exercise.sh
 #
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKTREE="$(cd "${WORKTREE:-${REPO_ROOT}}" && pwd)"
 
 # Same Python resolution as run-exercise.sh: PYTHON= > active venv > python/.venv > python3.
 if [[ -z "${PYTHON:-}" ]]; then
   if [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then PYTHON="${VIRTUAL_ENV}/bin/python"
-  elif [[ -x "${REPO_ROOT}/python/.venv/bin/python" ]]; then PYTHON="${REPO_ROOT}/python/.venv/bin/python"
+  elif [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then PYTHON="${WORKTREE}/python/.venv/bin/python"
   else PYTHON="python3"; fi
 fi
 
@@ -28,7 +30,7 @@ ok()   { printf '  %s✓%s %s\n' "${GREEN}" "${RESET}" "$1"; }
 # bad <message> <fix>  — records a worker-level finding (use CORE_MISSING=1 for core tools).
 bad()  { printf '  %s✗%s %s\n      %s↳ fix:%s %s\n' "${RED}" "${RESET}" "$1" "${YELLOW}" "${RESET}" "$2"; WORKER_MISSING=1; }
 
-ALL_LANGS=(python csharp js)
+ALL_LANGS=(python csharp js java-spring)
 if [[ $# -gt 0 ]]; then LANGS=("$@"); else LANGS=("${ALL_LANGS[@]}"); fi
 
 printf '%sPreflight — CPT test dependencies%s\n\n' "${BOLD}" "${RESET}"
@@ -57,7 +59,7 @@ printf '\n%sWorkers (each optional — missing ones are skipped by run-exercise.
 
 check_python() {
   printf '%spython%s\n' "${BOLD}" "${RESET}"
-  if [[ ! -f "${REPO_ROOT}/python/web_shop.py" ]]; then printf '  %s—%s no implementation in python/\n' "${YELLOW}" "${RESET}"; return; fi
+  if [[ ! -f "${WORKTREE}/python/web_shop.py" ]]; then printf '  %s—%s no implementation in python/\n' "${YELLOW}" "${RESET}"; return; fi
   if ! command -v "${PYTHON}" >/dev/null 2>&1; then bad "interpreter '${PYTHON}' not found" "install Python 3, or set PYTHON=/path/to/python"; return; fi
   if "${PYTHON}" -c "import camunda_orchestration_sdk" >/dev/null 2>&1; then
     ok "${PYTHON} + camunda_orchestration_sdk"
@@ -66,17 +68,17 @@ check_python() {
   # Not importable. Prefer a venv (Homebrew/Debian Python is PEP 668 'externally managed', so a plain
   # system-wide pip install is blocked). If python/.venv already exists, just point the user at it.
   local fix
-  if [[ -x "${REPO_ROOT}/python/.venv/bin/python" ]]; then
-    fix="run with: PYTHON=python/.venv/bin/python ./run-exercise.sh   (or 'source python/.venv/bin/activate' first)"
+  if [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then
+    fix="run with: PYTHON=${WORKTREE}/python/.venv/bin/python ./run-exercise.sh   (or 'source ${WORKTREE}/python/.venv/bin/activate' first)"
   else
-    fix="python3 -m venv python/.venv && source python/.venv/bin/activate && pip install -r python/requirements.txt"
+    fix="python3 -m venv ${WORKTREE}/python/.venv && source ${WORKTREE}/python/.venv/bin/activate && pip install -r ${WORKTREE}/python/requirements.txt"
   fi
   bad "camunda_orchestration_sdk not importable by ${PYTHON}" "${fix}"
 }
 
 check_csharp() {
   printf '%scsharp%s\n' "${BOLD}" "${RESET}"
-  local csproj; csproj="$(ls "${REPO_ROOT}"/csharp/*.csproj 2>/dev/null | head -1)"
+  local csproj; csproj="$(ls "${WORKTREE}"/csharp/*.csproj 2>/dev/null | head -1)"
   if [[ -z "${csproj}" ]]; then printf '  %s—%s no implementation in csharp/\n' "${YELLOW}" "${RESET}"; return; fi
   if ! command -v dotnet >/dev/null 2>&1; then bad "dotnet not found" "install the .NET SDK: https://dotnet.microsoft.com/download"; return; fi
   # Compare the project's target framework to the installed runtimes.
@@ -93,17 +95,25 @@ check_csharp() {
 
 check_js() {
   printf '%sjs%s\n' "${BOLD}" "${RESET}"
-  if [[ ! -f "${REPO_ROOT}/js/src/workers/exercise_5.ts" ]]; then printf '  %s—%s no implementation in js/\n' "${YELLOW}" "${RESET}"; return; fi
+  if [[ ! -f "${WORKTREE}/js/src/workers/exercise_5.ts" ]]; then printf '  %s—%s no implementation in js/\n' "${YELLOW}" "${RESET}"; return; fi
   if ! command -v npx >/dev/null 2>&1; then bad "npx/Node.js not found" "install Node.js: https://nodejs.org/"; return; fi
-  if [[ -d "${REPO_ROOT}/js/node_modules" ]]; then ok "Node.js + js/node_modules"
-  else bad "js/node_modules missing" "cd js && npm install   (needs @camunda8/orchestration-cluster-api + ts-node; add a package.json if absent)"; fi
+  if [[ -d "${WORKTREE}/js/node_modules" ]]; then ok "Node.js + js/node_modules"
+  else bad "js/node_modules missing" "cd ${WORKTREE}/js && npm install"; fi
+}
+
+check_java_spring() {
+  printf '%sjava-spring%s\n' "${BOLD}" "${RESET}"
+  if [[ ! -f "${WORKTREE}/java-spring/pom.xml" ]]; then printf '  %s—%s no implementation in java-spring/\n' "${YELLOW}" "${RESET}"; return; fi
+  if ! command -v mvn >/dev/null 2>&1; then bad "mvn not found" "install Maven, e.g. 'brew install maven'"; return; fi
+  ok "mvn (java-spring/pom.xml present)"
 }
 
 for lang in "${LANGS[@]}"; do
   case "${lang}" in
-    python) check_python ;;
-    csharp) check_csharp ;;
-    js)     check_js ;;
+    python)      check_python ;;
+    csharp)      check_csharp ;;
+    js)          check_js ;;
+    java-spring) check_java_spring ;;
     *)      printf '%s%s%s\n  %s—%s unknown language\n' "${BOLD}" "${lang}" "${RESET}" "${YELLOW}" "${RESET}" ;;
   esac
 done

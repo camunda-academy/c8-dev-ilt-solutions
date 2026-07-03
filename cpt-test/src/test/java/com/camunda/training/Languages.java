@@ -24,8 +24,21 @@ final class Languages {
 
   private Languages() {}
 
-  /** Repo root = parent of the {@code cpt-test} module directory. */
+  /**
+   * Directory holding the exercise's worker folders ({@code python/}, {@code csharp/}, ...) and
+   * {@code assets/}. Defaults to the parent of the {@code cpt-test} module directory (today's
+   * single-branch workflow, where {@code cpt-test/} and the worker folders are siblings).
+   *
+   * <p>Override with {@code -DworktreeDir=<path>} when {@code cpt-test/} lives on a separate
+   * harness branch (e.g. {@code integration-test}) and the worker code/assets for the exercise
+   * under test were checked out elsewhere via {@code git worktree} — see
+   * {@code cpt-test/ALL-EXERCISES-PLAN.md}.
+   */
   static Path repoRoot() {
+    String override = System.getProperty("worktreeDir");
+    if (override != null && !override.isBlank()) {
+      return Path.of(override);
+    }
     return Path.of(System.getProperty("user.dir")).getParent();
   }
 

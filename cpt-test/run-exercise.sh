@@ -13,6 +13,10 @@
 # Usage:
 #   ./run-exercise.sh                 # run every available language (auto-detected)
 #   ./run-exercise.sh python js       # run only the named languages (still skips if unavailable)
+#   WORKTREE=../tmp ./run-exercise.sh # worker code + assets/ live in a separate checkout (e.g. a
+#                                      # `git worktree` of an exercise-NN branch, when this harness
+#                                      # lives on its own branch — see ALL-EXERCISES-PLAN.md).
+#                                      # Defaults to this script's own repo (cpt-test's sibling dir).
 #
 # Languages with no implementation on this branch (java, java-spring) or whose toolchain/deps are
 # not installed are SKIPPED (reported, not failed). One worker runs at a time so they don't compete
@@ -23,6 +27,7 @@ set -uo pipefail
 # ---- paths -------------------------------------------------------------------
 CPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${CPT_DIR}/.." && pwd)"
+WORKTREE="$(cd "${WORKTREE:-${REPO_ROOT}}" && pwd)"
 RESULTS_DIR="${CPT_DIR}/results"
 REPORT_MD="${RESULTS_DIR}/report.md"
 
@@ -37,15 +42,15 @@ GRPC="http://localhost:26500"
 if [[ -z "${PYTHON:-}" ]]; then
   if [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
     PYTHON="${VIRTUAL_ENV}/bin/python"
-  elif [[ -x "${REPO_ROOT}/python/.venv/bin/python" ]]; then
-    PYTHON="${REPO_ROOT}/python/.venv/bin/python"
+  elif [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then
+    PYTHON="${WORKTREE}/python/.venv/bin/python"
   else
     PYTHON="python3"
   fi
 fi
 
 # ---- which languages ---------------------------------------------------------
-ALL_LANGS=(python csharp js)
+ALL_LANGS=(python csharp js java-spring)
 if [[ $# -gt 0 ]]; then REQUESTED=("$@"); else REQUESTED=("${ALL_LANGS[@]}"); fi
 
 # ---- state for cleanup -------------------------------------------------------
@@ -118,19 +123,23 @@ lang_available() {
   SKIP_REASON=""
   case "${lang}" in
     python)
-      [[ -f "${REPO_ROOT}/python/web_shop.py" ]] || { SKIP_REASON="no python/web_shop.py"; return 1; }
+      [[ -f "${WORKTREE}/python/web_shop.py" ]] || { SKIP_REASON="no python/web_shop.py"; return 1; }
       command -v "${PYTHON}" >/dev/null || { SKIP_REASON="interpreter '${PYTHON}' not found"; return 1; }
       "${PYTHON}" -c "import camunda_orchestration_sdk" >/dev/null 2>&1 \
         || { SKIP_REASON="camunda_orchestration_sdk not importable by ${PYTHON} (pip install it, or set PYTHON=/path/to/venv/python)"; return 1; }
       ;;
     csharp)
-      ls "${REPO_ROOT}"/csharp/*.csproj >/dev/null 2>&1 || { SKIP_REASON="no csharp/*.csproj"; return 1; }
+      ls "${WORKTREE}"/csharp/*.csproj >/dev/null 2>&1 || { SKIP_REASON="no csharp/*.csproj"; return 1; }
       command -v dotnet >/dev/null || { SKIP_REASON="dotnet not found"; return 1; }
       ;;
     js)
-      [[ -f "${REPO_ROOT}/js/src/workers/exercise_5.ts" ]] || { SKIP_REASON="no js worker source"; return 1; }
+      [[ -f "${WORKTREE}/js/src/workers/exercise_5.ts" ]] || { SKIP_REASON="no js worker source"; return 1; }
       command -v npx >/dev/null || { SKIP_REASON="npx not found"; return 1; }
-      [[ -d "${REPO_ROOT}/js/node_modules" ]] || { SKIP_REASON="js/node_modules missing (run 'npm install' in js/)"; return 1; }
+      [[ -d "${WORKTREE}/js/node_modules" ]] || { SKIP_REASON="js/node_modules missing (run 'npm install' in js/)"; return 1; }
+      ;;
+    java-spring)
+      [[ -f "${WORKTREE}/java-spring/pom.xml" ]] || { SKIP_REASON="no java-spring/pom.xml"; return 1; }
+      command -v mvn >/dev/null || { SKIP_REASON="mvn not found"; return 1; }
       ;;
     *) SKIP_REASON="unknown language"; return 1 ;;
   esac
@@ -140,19 +149,24 @@ lang_start() {
   local lang="$1" logfile="$2"
   case "${lang}" in
     python)
-      ( cd "${REPO_ROOT}/python" && \
+      ( cd "${WORKTREE}/python" && \
         CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_AUTH_STRATEGY=NONE \
         "${PYTHON}" web_shop.py ) >"${logfile}" 2>&1 &
       ;;
     csharp)
-      ( cd "${REPO_ROOT}/csharp" && \
+      ( cd "${WORKTREE}/csharp" && \
         CAMUNDA_GRPC_ADDRESS="${GRPC}" CAMUNDA_AUTH_STRATEGY=NONE \
         dotnet run ) >"${logfile}" 2>&1 &
       ;;
     js)
-      ( cd "${REPO_ROOT}/js" && \
+      ( cd "${WORKTREE}/js" && \
         CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_AUTH_STRATEGY=NONE \
-        npx ts-node src/workers/exercise_5.ts ) >"${logfile}" 2>&1 &
+        npx ts-node --transpile-only src/workers/exercise_5.ts ) >"${logfile}" 2>&1 &
+      ;;
+    java-spring)
+      ( cd "${WORKTREE}/java-spring" && \
+        CAMUNDA_CLIENT_MODE=self-managed CAMUNDA_CLIENT_AUTH_METHOD=none \
+        mvn -q -B spring-boot:run ) >"${logfile}" 2>&1 &
       ;;
   esac
   WORKER_PID="$!"
@@ -163,17 +177,21 @@ declare -a R_LANG R_TESTS R_PASS R_FAIL R_SKIP R_STATUS
 
 add_row() { R_LANG+=("$1"); R_TESTS+=("$2"); R_PASS+=("$3"); R_FAIL+=("$4"); R_SKIP+=("$5"); R_STATUS+=("$6"); }
 
-# Parse the Surefire .txt summary line: "Tests run: N, Failures: F, Errors: E, Skipped: S"
+# Sum the Surefire .txt summary line ("Tests run: N, Failures: F, Errors: E, Skipped: S") across
+# EVERY test class's report file in the directory (one -Dtest= run may cover several classes).
 parse_surefire() {
-  local dir="$1" line
-  line="$(grep -hE 'Tests run: [0-9]+' "${dir}"/*.txt 2>/dev/null | tail -1)"
-  [[ -z "${line}" ]] && { echo "0 0 0 0"; return; }
-  local run fail errs skip
-  run="$(sed -E 's/.*Tests run: ([0-9]+).*/\1/' <<<"${line}")"
-  fail="$(sed -E 's/.*Failures: ([0-9]+).*/\1/' <<<"${line}")"
-  errs="$(sed -E 's/.*Errors: ([0-9]+).*/\1/' <<<"${line}")"
-  skip="$(sed -E 's/.*Skipped: ([0-9]+).*/\1/' <<<"${line}")"
-  echo "${run} $((fail + errs)) ${skip}"
+  local dir="$1" line run fail errs skip
+  local total_run=0 total_fail=0 total_skip=0
+  while IFS= read -r line; do
+    run="$(sed -E 's/.*Tests run: ([0-9]+).*/\1/' <<<"${line}")"
+    fail="$(sed -E 's/.*Failures: ([0-9]+).*/\1/' <<<"${line}")"
+    errs="$(sed -E 's/.*Errors: ([0-9]+).*/\1/' <<<"${line}")"
+    skip="$(sed -E 's/.*Skipped: ([0-9]+).*/\1/' <<<"${line}")"
+    total_run=$((total_run + run))
+    total_fail=$((total_fail + fail + errs))
+    total_skip=$((total_skip + skip))
+  done < <(grep -hE 'Tests run: [0-9]+' "${dir}"/*.txt 2>/dev/null)
+  echo "${total_run} ${total_fail} ${total_skip}"
 }
 
 # ---- main --------------------------------------------------------------------
@@ -182,7 +200,7 @@ mkdir -p "${RESULTS_DIR}"
 # Preflight (skip with PREFLIGHT=0). If it reports problems, ask before continuing.
 #   exit 0 = all good   1 = some worker deps missing   2 = a core dependency missing
 if [[ "${PREFLIGHT:-1}" != "0" && -x "${CPT_DIR}/preflight.sh" ]]; then
-  PYTHON="${PYTHON}" "${CPT_DIR}/preflight.sh" "${REQUESTED[@]}"
+  PYTHON="${PYTHON}" WORKTREE="${WORKTREE}" "${CPT_DIR}/preflight.sh" "${REQUESTED[@]}"
   pf_rc=$?
   echo
   if [[ "${pf_rc}" -ne 0 ]]; then
@@ -229,7 +247,8 @@ for lang in "${REQUESTED[@]}"; do
   fi
 
   log "[${lang}] running tests"
-  ( cd "${CPT_DIR}" && mvn -B test -Dtest=Exercise05Test "-Dlang=${lang}" ) \
+  ( cd "${CPT_DIR}" && mvn -B test -Dtest=Exercise05Test,Exercise05ScenarioReplayTest \
+      "-Dlang=${lang}" "-DworktreeDir=${WORKTREE}" ) \
     >"${LANG_RESULTS}/maven.log" 2>&1
   MVN_RC=$?
 

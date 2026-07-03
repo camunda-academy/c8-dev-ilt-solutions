@@ -1,77 +1,97 @@
 # CPT tests — Payment Process
 
 Camunda Process Test (CPT) suite that verifies the `PaymentProcess` solutions end-to-end against the
-**real** job workers (`python`, `csharp`, `js`) — no mocks. CPT runs in `remote` mode against a local
-Camunda runtime; you (or the script) start one worker that connects to the same runtime.
+**real** job workers (`python`, `csharp`, `js`, `java-spring`) — no mocks. One command boots a local
+Camunda runtime, runs every available worker against it in turn, and reports pass/fail per language.
 
-## Run everything (one command)
+This harness lives on its own branch (`integration-test`). Worker source and `assets/` (BPMN +
+scenario JSON) live on the exercise branch instead (e.g. `exercise-05`) and are pulled in via
+`git worktree` — see `ALL-EXERCISES-PLAN.md` for the full design and why.
+
+## Prerequisites
+
+- Docker (running)
+- Java 21 + Maven
+- Whichever worker toolchains you want tested: Python 3, .NET 8 SDK, Node.js — `run-exercise.sh`
+  skips any language whose toolchain or worker code isn't available, rather than failing.
+
+## Run
 
 ```bash
+cd "<repo root>"
+git worktree add tmp exercise-05      # once, to pull in that exercise's worker code + assets/
+
 cd cpt-test
-./run-exercise.sh                 # all available languages
-./run-exercise.sh python js       # only these
+WORKTREE=../tmp ./run-exercise.sh     # runs every available language
+
+git worktree remove tmp               # when done
 ```
 
-`run-exercise.sh` first runs a **preflight** that reports missing dependencies and how to fix them. If
-it finds problems, it asks whether to continue (default: no). Run it standalone with `./preflight.sh`;
-skip the check with `PREFLIGHT=0`; answer the prompt automatically with `YES=1` (also used when there's
-no terminal, e.g. CI).
+To test a specific exercise, point `git worktree` at that exercise's branch instead of `exercise-05`.
+To test only some languages: `WORKTREE=../tmp ./run-exercise.sh python js`.
 
-It then starts the runtime, and per language: starts its worker → runs the tests → stops the worker →
-tears the runtime down on exit. Missing languages (`java`, `java-spring`) or toolchains are
-**skipped**, not failed. Output in `results/`:
+## Expected output
 
-- `results/report.md` — summary table
-- `results/<lang>/` — Surefire reports, `coverage-report/`, `worker.log`
+```
+Preflight — CPT test dependencies
 
-## Run manually
+Core (required):
+  ✓ Docker running
+  ✓ Java 21
+  ✓ Maven 3.9.14
+  ✓ curl
 
-**Prerequisites:** Docker, Java 21 + Maven, and the worker toolchain (Python 3 / .NET 8 / Node.js).
+Workers (each optional — missing ones are skipped by run-exercise.sh):
+python
+  ✓ .../python/.venv/bin/python + camunda_orchestration_sdk
+csharp
+  ✓ dotnet (runtimes: 8 9 10; project target: net8.0)
+js
+  ✓ Node.js + js/node_modules
+java-spring
+  ✓ mvn (java-spring/pom.xml present)
 
-```bash
-# 1. Runtime — camunda/camunda:8.9.6, no-auth, ports 26500 (gRPC) / 8080 (REST) / 9600 (monitoring)
-./start-runtime.sh                       # stop with: ./start-runtime.sh stop
+All dependencies present.
 
-# 2. ONE worker (env vars point it at the runtime, no auth; otherwise it uses its own SaaS config)
-source env.local.sh
-cd python && python3 web_shop.py                          # see Python setup below
-# or:  cd csharp && dotnet run                             # reads CAMUNDA_GRPC_ADDRESS
-# or:  cd js && npx ts-node src/workers/exercise_5.ts
+==> Starting Camunda runtime (camunda/camunda:8.10.0-alpha3-rc2)
+Waiting for runtime... ready.
 
-# 3. Tests — -Dlang must match the worker you started
-cd cpt-test && mvn test -Dtest=Exercise05Test -Dlang=python
+==> [python] starting worker
+==> [python] running tests
+==> [python] PASSED (tests=3 passed=3 failed=0 skipped=0)
+
+==> [csharp] starting worker
+==> [csharp] running tests
+==> [csharp] PASSED (tests=3 passed=3 failed=0 skipped=0)
+
+==> [js] starting worker
+==> [js] running tests
+==> [js] PASSED (tests=3 passed=3 failed=0 skipped=0)
+
+==> [java-spring] starting worker
+==> [java-spring] running tests
+==> [java-spring] PASSED (tests=3 passed=3 failed=0 skipped=0)
+
+==> Report written to cpt-test/results/report.md
+
+# CPT test report
+
+_Generated: 2026-07-03 12:31:19_  •  Process: `PaymentProcess`  •  Runtime: `camunda/camunda:8.10.0-alpha3-rc2`
+
+| Language    | Tests | Passed | Failed | Skipped | Status |
+| ----------- | ----- | ------ | ------ | ------- | ------ |
+| python      | 3     | 3      | 0      | 0       | PASSED |
+| csharp      | 3     | 3      | 0      | 0       | PASSED |
+| js          | 3     | 3      | 0      | 0       | PASSED |
+| java-spring | 3     | 3      | 0      | 0       | PASSED |
+
+==> Stopping Camunda runtime
 ```
 
-Run one worker at a time (they share the same job types). `-Dlang` naming an unavailable language
-skips, not fails. CPT coverage report: `target/coverage-report/report.html`.
+A language reports `SKIPPED — <reason>` instead of `PASSED`/`FAILED` when its toolchain or worker
+code isn't available — that's expected, not an error. Full detail (Surefire reports, worker logs,
+coverage HTML) lands under `cpt-test/results/<language>/`; the summary table above is also written to
+`cpt-test/results/report.md`.
 
-> The worker terminal may log `HTTP 500 … "Cluster was purged"` — normal: CPT wipes the runtime
-> between tests, cancelling the worker's long-poll; the SDK retries. The result is in
-> `target/surefire-reports` (`Failures: 0, Errors: 0`).
-
-### Python worker setup
-
-The Python SDK can't be installed system-wide on a Homebrew/Debian Python (PEP 668). Use a venv in
-`python/` — both scripts auto-detect `python/.venv`, so no `PYTHON=` is needed afterward:
-
-```bash
-python3 -m venv python/.venv
-source python/.venv/bin/activate
-pip install -r python/requirements.txt
-```
-
-## Scenarios
-
-| Scenario               | orderTotal | customerCredit | Path                                |
-| ---------------------- | ---------- | -------------- | ----------------------------------- |
-| `pay-with-credit-card` | 45.99      | 20             | deduct credit → charge card → done  |
-| `pay-with-credit-only` | 45.99      | 100            | deduct credit → (skip card) → done  |
-
-## Notes
-
-- BPMN source is `assets/Payment Process.bpmn`; the deployed copy is
-  `src/test/resources/PaymentProcess.bpmn` — update both if it changes.
-- Scenarios are coded as `@Test` methods (not driven from the JSON file): the tests must exercise the
-  real workers, so they only create instances and assert. The CPT JSON runner would complete jobs
-  itself (bypassing the workers) and uses an incompatible schema. The JSON file is reference only.
-- Bump `camunda.version` in `pom.xml` (and the image tag in `start-runtime.sh`) to track a newer release.
+If preflight finds a problem, it asks whether to continue (default: no) — set `YES=1` to skip that
+prompt (e.g. in CI), or `PREFLIGHT=0` to skip the check entirely.
