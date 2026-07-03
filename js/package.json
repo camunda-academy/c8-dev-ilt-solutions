@@ -1,0 +1,16 @@
+{
+  "name": "c8-training-js",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Camunda 8 training - JavaScript/TypeScript worker solution (Exercise 9)",
+  "scripts": {
+    "start": "ts-node src/workers/exercise_9.ts"
+  },
+  "dependencies": {
+    "@camunda8/orchestration-cluster-api": "^9.1.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}
