@@ -2,13 +2,17 @@
 #
 # Preflight check for the CPT test runner.
 #
-# Reports which dependencies are present and, for anything missing, prints the exact command to fix
-# it. It NEVER installs anything and NEVER blocks — run-exercise.sh calls it for information only.
+# Reports which dependencies are present. For per-worktree setup it can fix itself automatically
+# (python venv + pip install, npm install) — those are just "materialize this worktree's
+# dependencies" and safe to (re)run any time. Anything it can't safely fix (missing Docker/Java/
+# Maven/dotnet/Node itself, wrong .NET runtime) is reported with the command to fix it, and
+# run-exercise.sh treats that as informational, never fatal.
 #
 # Usage:
-#   ./preflight.sh            # check everything
+#   ./preflight.sh            # check everything, auto-fixing what it can
 #   ./preflight.sh python js  # check core tools + only these languages
 #   WORKTREE=../tmp ./preflight.sh   # worker code lives in a separate checkout — see run-exercise.sh
+#   NO_AUTOFIX=1 ./preflight.sh      # report only, don't install anything (old behavior)
 #
 set -uo pipefail
 
@@ -60,20 +64,31 @@ printf '\n%sWorkers (each optional — missing ones are skipped by run-exercise.
 check_python() {
   printf '%spython%s\n' "${BOLD}" "${RESET}"
   if [[ ! -f "${WORKTREE}/python/web_shop.py" ]]; then printf '  %s—%s no implementation in python/\n' "${YELLOW}" "${RESET}"; return; fi
-  if ! command -v "${PYTHON}" >/dev/null 2>&1; then bad "interpreter '${PYTHON}' not found" "install Python 3, or set PYTHON=/path/to/python"; return; fi
+  if ! command -v python3 >/dev/null 2>&1; then bad "python3 not found" "install Python 3"; return; fi
   if "${PYTHON}" -c "import camunda_orchestration_sdk" >/dev/null 2>&1; then
     ok "${PYTHON} + camunda_orchestration_sdk"
     return
   fi
-  # Not importable. Prefer a venv (Homebrew/Debian Python is PEP 668 'externally managed', so a plain
-  # system-wide pip install is blocked). If python/.venv already exists, just point the user at it.
-  local fix
-  if [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then
-    fix="run with: PYTHON=${WORKTREE}/python/.venv/bin/python ./run-exercise.sh   (or 'source ${WORKTREE}/python/.venv/bin/activate' first)"
-  else
-    fix="python3 -m venv ${WORKTREE}/python/.venv && source ${WORKTREE}/python/.venv/bin/activate && pip install -r ${WORKTREE}/python/requirements.txt"
+  if [[ "${NO_AUTOFIX:-0}" == "1" ]]; then
+    local fix
+    if [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then
+      fix="run with: PYTHON=${WORKTREE}/python/.venv/bin/python ./run-exercise.sh   (or 'source ${WORKTREE}/python/.venv/bin/activate' first)"
+    else
+      fix="python3 -m venv ${WORKTREE}/python/.venv && source ${WORKTREE}/python/.venv/bin/activate && pip install -r ${WORKTREE}/python/requirements.txt"
+    fi
+    bad "camunda_orchestration_sdk not importable by ${PYTHON}" "${fix}"
+    return
   fi
-  bad "camunda_orchestration_sdk not importable by ${PYTHON}" "${fix}"
+  # Auto-fix: create/reuse a venv (Homebrew/Debian Python is PEP 668 'externally managed', so a
+  # plain system-wide pip install is blocked) and install the worker's requirements into it.
+  [[ -x "${WORKTREE}/python/.venv/bin/python" ]] || python3 -m venv "${WORKTREE}/python/.venv" >/dev/null 2>&1
+  if "${WORKTREE}/python/.venv/bin/pip" install -q -r "${WORKTREE}/python/requirements.txt" >/dev/null 2>&1; then
+    PYTHON="${WORKTREE}/python/.venv/bin/python"
+    ok "${PYTHON} + camunda_orchestration_sdk (installed into python/.venv)"
+  else
+    bad "camunda_orchestration_sdk not importable by ${PYTHON}, and auto-install into python/.venv failed" \
+        "python3 -m venv ${WORKTREE}/python/.venv && source ${WORKTREE}/python/.venv/bin/activate && pip install -r ${WORKTREE}/python/requirements.txt"
+  fi
 }
 
 check_csharp() {
@@ -95,10 +110,20 @@ check_csharp() {
 
 check_js() {
   printf '%sjs%s\n' "${BOLD}" "${RESET}"
-  if [[ ! -f "${WORKTREE}/js/src/workers/exercise_5.ts" ]]; then printf '  %s—%s no implementation in js/\n' "${YELLOW}" "${RESET}"; return; fi
+  compgen -G "${WORKTREE}/js/src/workers/exercise_*.ts" >/dev/null 2>&1 \
+    || { printf '  %s—%s no implementation in js/\n' "${YELLOW}" "${RESET}"; return; }
   if ! command -v npx >/dev/null 2>&1; then bad "npx/Node.js not found" "install Node.js: https://nodejs.org/"; return; fi
-  if [[ -d "${WORKTREE}/js/node_modules" ]]; then ok "Node.js + js/node_modules"
-  else bad "js/node_modules missing" "cd ${WORKTREE}/js && npm install"; fi
+  if [[ -d "${WORKTREE}/js/node_modules" ]]; then ok "Node.js + js/node_modules"; return; fi
+  if [[ "${NO_AUTOFIX:-0}" == "1" ]]; then
+    bad "js/node_modules missing" "cd ${WORKTREE}/js && npm install"
+    return
+  fi
+  # Auto-fix: install once per worktree (npm install is idempotent/safe to re-run).
+  if ( cd "${WORKTREE}/js" && npm install >/dev/null 2>&1 ); then
+    ok "Node.js + js/node_modules (installed)"
+  else
+    bad "js/node_modules missing, and 'npm install' failed" "cd ${WORKTREE}/js && npm install"
+  fi
 }
 
 check_java_spring() {

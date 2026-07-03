@@ -15,6 +15,10 @@ scenario JSON) live on the exercise branch instead (e.g. `exercise-05`) and are 
 - Whichever worker toolchains you want tested: Python 3, .NET 8 SDK, Node.js — `run-exercise.sh`
   skips any language whose toolchain or worker code isn't available, rather than failing.
 
+No manual per-worktree setup is needed beyond that: the first run against a fresh `git worktree`
+checkout creates the Python venv and runs `npm install` automatically (preflight does this — set
+`NO_AUTOFIX=1` to just report what's missing instead).
+
 ## Run
 
 `git worktree add` creates its directory relative to wherever you run it — the commands below only

@@ -59,7 +59,9 @@ if [[ ! -f "${CPT_DIR}/src/test/java/com/camunda/training/${EXERCISE_CLASS}.java
   echo "[err] No ${EXERCISE_CLASS}.java in cpt-test yet — exercise-${EXERCISE_NUM} has no CPT test written." >&2
   exit 1
 fi
-JS_WORKER_FILE="exercise_${EXERCISE_NUM}.ts"
+# JS worker filenames are unpadded (exercise_5.ts, exercise_10.ts — never exercise_05.ts), unlike
+# the branch name / Java class name, which keep the leading zero (exercise-05, Exercise05Test).
+JS_WORKER_FILE="exercise_$((10#${EXERCISE_NUM})).ts"
 
 # ---- runtime config ----------------------------------------------------------
 IMAGE="camunda/camunda:8.10.0-alpha3-rc2"
@@ -68,16 +70,21 @@ REST="http://localhost:8080"
 GRPC="http://localhost:26500"
 
 # Python interpreter for the worker. Precedence: explicit PYTHON= > active venv > the project's
-# python/.venv (created per the preflight's suggestion) > python3 on PATH.
-if [[ -z "${PYTHON:-}" ]]; then
-  if [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+# python/.venv (created by preflight if missing) > python3 on PATH. Re-resolved after preflight
+# runs (below), since preflight may have just created python/.venv.
+resolve_python() {
+  if [[ -n "${PYTHON_OVERRIDE:-}" ]]; then
+    PYTHON="${PYTHON_OVERRIDE}"
+  elif [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
     PYTHON="${VIRTUAL_ENV}/bin/python"
   elif [[ -x "${WORKTREE}/python/.venv/bin/python" ]]; then
     PYTHON="${WORKTREE}/python/.venv/bin/python"
   else
     PYTHON="python3"
   fi
-fi
+}
+PYTHON_OVERRIDE="${PYTHON:-}"
+resolve_python
 
 # ---- which languages ---------------------------------------------------------
 ALL_LANGS=(python csharp js java-spring)
@@ -227,11 +234,13 @@ parse_surefire() {
 # ---- main --------------------------------------------------------------------
 mkdir -p "${RESULTS_DIR}"
 
-# Preflight (skip with PREFLIGHT=0). If it reports problems, ask before continuing.
+# Preflight (skip with PREFLIGHT=0). Auto-fixes what it safely can (python venv, npm install) —
+# see preflight.sh. If it reports problems it couldn't fix, ask before continuing.
 #   exit 0 = all good   1 = some worker deps missing   2 = a core dependency missing
 if [[ "${PREFLIGHT:-1}" != "0" && -x "${CPT_DIR}/preflight.sh" ]]; then
   PYTHON="${PYTHON}" WORKTREE="${WORKTREE}" "${CPT_DIR}/preflight.sh" "${REQUESTED[@]}"
   pf_rc=$?
+  resolve_python  # preflight may have just created python/.venv — pick it up
   echo
   if [[ "${pf_rc}" -ne 0 ]]; then
     if [[ ! -t 0 || "${YES:-0}" == "1" ]]; then
