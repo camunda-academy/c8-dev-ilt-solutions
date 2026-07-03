@@ -17,18 +17,27 @@ scenario JSON) live on the exercise branch instead (e.g. `exercise-05`) and are 
 
 ## Run
 
+`git worktree add` creates its directory relative to wherever you run it — the commands below only
+work if you're at the repo root when you run them. If in doubt, run `git rev-parse --show-toplevel`
+first and `cd` there.
+
 ```bash
-cd "<repo root>"
+cd "$(git rev-parse --show-toplevel)"
 git worktree add tmp exercise-05      # once, to pull in that exercise's worker code + assets/
 
 cd cpt-test
 WORKTREE=../tmp ./run-exercise.sh     # runs every available language
 
+cd ..
 git worktree remove tmp               # when done
 ```
 
 To test a specific exercise, point `git worktree` at that exercise's branch instead of `exercise-05`.
 To test only some languages: `WORKTREE=../tmp ./run-exercise.sh python js`.
+
+If `WORKTREE` doesn't point at an existing directory, or that directory isn't checked out to an
+`exercise-NN` branch, `run-exercise.sh` exits immediately with an explanatory message rather than
+running against the wrong thing.
 
 ## Expected output
 

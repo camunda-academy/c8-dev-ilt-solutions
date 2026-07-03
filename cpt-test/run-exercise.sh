@@ -32,7 +32,13 @@ set -uo pipefail
 # ---- paths -------------------------------------------------------------------
 CPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${CPT_DIR}/.." && pwd)"
-WORKTREE="$(cd "${WORKTREE:-${REPO_ROOT}}" && pwd)"
+REQUESTED_WORKTREE="${WORKTREE:-${REPO_ROOT}}"
+if ! WORKTREE="$(cd "${REQUESTED_WORKTREE}" 2>/dev/null && pwd)"; then
+  echo "[err] WORKTREE (${REQUESTED_WORKTREE}) does not exist. Set WORKTREE=<path> to a" \
+       "'git worktree add' checkout of the exercise-NN branch you want to test" \
+       "(see cpt-test/README.md)." >&2
+  exit 1
+fi
 RESULTS_DIR="${CPT_DIR}/results"
 REPORT_MD="${RESULTS_DIR}/report.md"
 
