@@ -22,7 +22,7 @@ jobs:
         working-directory: harness/cpt-test
     steps:
       - name: Checkout harness (integration-test)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Inside a workflow_call, the default github.repository/github.ref reflect the CALLER
           # (whichever exercise-NN branch triggered this), not this reusable workflow's own repo/
@@ -32,44 +32,44 @@ jobs:
           path: harness
 
       - name: Checkout exercise branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.exercise-branch }}
           path: worktree
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
           cache-dependency-path: harness/cpt-test/pom.xml
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "23"
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
 
       # Per-language dependency caches — see cpt-test/ALL-EXERCISES-PLAN.md's cost notes; these are
       # the dominant cost lever. Cache keys are best-effort (lockfiles may not exist on every
       # branch/language); a miss just falls back to a fresh install, same as running locally.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: worktree/python/.venv
           key: ${{ runner.os }}-venv-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/python/requirements.txt') }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: worktree/js/node_modules
           key: ${{ runner.os }}-npm-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/js/package-lock.json') }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('worktree/csharp/**/*.csproj') }}
@@ -85,7 +85,7 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cpt-results-${{ inputs.exercise-branch }}
           path: harness/cpt-test/results/
