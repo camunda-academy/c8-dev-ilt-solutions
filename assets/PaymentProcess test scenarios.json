@@ -2,16 +2,18 @@
   "processId": "PaymentProcess",
   "testCases": [
     {
-      "name": "pay-with-credit-card",
+      "name": "pay-with-credit-card-msg",
       "instructions": [
         {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
           "variables": {
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010c",
+            "expiryDate": "09/28",
+            "customerId": "cust30",
             "orderTotal": 45.99,
-            "customerCredit": 20
+            "cvc": "123",
+            "cardNumber": "1234 5678"
           }
         },
         {
@@ -19,6 +21,9 @@
           "jobSelector": {
             "elementId": "Activity_1hu6sex",
             "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
           }
         },
         {
@@ -37,7 +42,7 @@
         }
       ],
       "metadata": {
-        "processInstanceId": 2251799813685325,
+        "processInstanceId": "2251800059345468",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -50,6 +55,10 @@
           {
             "flowNodeId": "Gateway_1xthnkz",
             "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
           },
           {
             "flowNodeId": "Activity_16kuby1",
@@ -68,22 +77,25 @@
           "Flow_0b7gmku",
           "Flow_15c9io5",
           "Flow_128mjtf",
+          "Flow_08yvuv1",
           "Flow_15d0kch",
           "Flow_056mvh2"
         ]
       }
     },
     {
-      "name": "pay-with-credit-only",
+      "name": "pay-with-invalid-expiry-date",
       "instructions": [
         {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
           "variables": {
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010d",
+            "expiryDate": "2027/09",
+            "customerId": "cust30",
             "orderTotal": 45.99,
-            "customerCredit": 100
+            "cvc": "123",
+            "cardNumber": "1234 5678"
           }
         },
         {
@@ -91,18 +103,24 @@
           "jobSelector": {
             "elementId": "Activity_1hu6sex",
             "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
           }
         },
         {
-          "type": "ASSERT_PROCESS_INSTANCE",
+          "type": "ASSERT_ELEMENT_INSTANCE",
           "processInstanceSelector": {
             "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_06hvl17"
           },
           "state": "IS_COMPLETED"
         }
       ],
       "metadata": {
-        "processInstanceId": 2251799813685539,
+        "processInstanceId": "2251800059345469",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -117,19 +135,28 @@
             "elementType": "bpmn:ExclusiveGateway"
           },
           {
-            "flowNodeId": "Gateway_02roc4u",
-            "elementType": "bpmn:ExclusiveGateway"
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
           },
           {
-            "flowNodeId": "Event_03bvprt",
+            "flowNodeId": "Activity_16kuby1",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Event_1b7ninz",
+            "elementType": "bpmn:BoundaryEvent"
+          },
+          {
+            "flowNodeId": "Event_06hvl17",
             "elementType": "bpmn:EndEvent"
           }
         ],
         "coveredSequenceFlows": [
           "Flow_0b7gmku",
           "Flow_15c9io5",
-          "Flow_1qqxzyh",
-          "Flow_056mvh2"
+          "Flow_128mjtf",
+          "Flow_08yvuv1",
+          "Flow_0kgqits"
         ]
       }
     }

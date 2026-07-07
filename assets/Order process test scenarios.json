@@ -1,0 +1,75 @@
+{
+  "processId": "OrderProcess",
+  "testCases": [
+    {
+      "name": "OrderProcess test scenario",
+      "instructions": [
+        {
+          "type": "CREATE_PROCESS_INSTANCE",
+          "processDefinitionSelector": {
+            "processDefinitionId": "OrderProcess"
+          },
+          "variables": {
+            "orderTotal": 45.99,
+            "customerId": "cust30",
+            "cardNumber": "1234 5678",
+            "cvc": "123",
+            "expiryDate": "09/28"
+          },
+          "runtimeInstructions": [
+            {
+              "type": "TERMINATE_PROCESS_INSTANCE",
+              "afterElementId": "Event_0thk848"
+            }
+          ]
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "OrderProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_0thk848"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": "2251800059344586",
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "StartEvent_1",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1omjax4",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_1s27spe",
+            "elementType": "bpmn:SendTask"
+          },
+          {
+            "flowNodeId": "Gateway_0moymkj",
+            "elementType": "bpmn:EventBasedGateway"
+          },
+          {
+            "flowNodeId": "Event_0ccxxtz",
+            "elementType": "bpmn:IntermediateCatchEvent"
+          },
+          {
+            "flowNodeId": "Event_0thk848",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0gp98d1",
+          "Flow_19an4sx",
+          "Flow_1sh54oc",
+          "Flow_0p2m72y",
+          "Flow_0egkc0b"
+        ]
+      }
+    }
+  ]
+}
