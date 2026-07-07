@@ -24,6 +24,11 @@ jobs:
       - name: Checkout harness (integration-test)
         uses: actions/checkout@v4
         with:
+          # Inside a workflow_call, the default github.repository/github.ref reflect the CALLER
+          # (whichever exercise-NN branch triggered this), not this reusable workflow's own repo/
+          # ref — pin both explicitly so this step always checks out integration-test itself.
+          repository: camunda-academy/c8-dev-ilt-solutions
+          ref: integration-test
           path: harness
 
       - name: Checkout exercise branch
