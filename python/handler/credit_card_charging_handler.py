@@ -12,7 +12,7 @@ async def credit_card_charging_handler(job: ConnectedJobContext) -> dict[str, ob
         charge_credit_card(variables["cardNumber"], variables["cvc"], variables["expiryDate"], variables["openAmount"])
     except ValueError as e:
         print(e)
-        raise JobError(error_code="invalidExpiryDate", message=str(e))
+        raise JobError(error_code="creditCardChargeError", message=str(e))
     except Exception as e:
         raise JobFailure(str(e), job.retries - 1, 2000)
         
