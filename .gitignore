@@ -9,6 +9,10 @@ __pycache__/
 # Node
 node_modules/
 
+# .NET
+bin/
+obj/
+
 # Java / Maven build output
 target/
 
