@@ -2,16 +2,18 @@
   "processId": "PaymentProcess",
   "testCases": [
     {
-      "name": "pay-with-credit-card",
+      "name": "pay-with-credit-card-msg",
       "instructions": [
         {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
           "variables": {
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010c",
+            "expiryDate": "09/28",
+            "customerId": "cust30",
             "orderTotal": 45.99,
-            "customerCredit": 20
+            "cvc": "123",
+            "cardNumber": "1234 5678"
           }
         },
         {
@@ -19,6 +21,9 @@
           "jobSelector": {
             "elementId": "Activity_1hu6sex",
             "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
           }
         },
         {
@@ -37,7 +42,7 @@
         }
       ],
       "metadata": {
-        "processInstanceId": 2251799813685325,
+        "processInstanceId": "2251800059345468",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -49,6 +54,14 @@
           },
           {
             "flowNodeId": "Gateway_1xthnkz",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Gateway_00z7p4e",
             "elementType": "bpmn:ExclusiveGateway"
           },
           {
@@ -68,22 +81,26 @@
           "Flow_0b7gmku",
           "Flow_15c9io5",
           "Flow_128mjtf",
+          "Flow_08yvuv1",
+          "Flow_03p0gza",
           "Flow_15d0kch",
           "Flow_056mvh2"
         ]
       }
     },
     {
-      "name": "pay-with-credit-only",
+      "name": "pay-with-invalid-expiry-date-resolved",
       "instructions": [
         {
-          "type": "CREATE_PROCESS_INSTANCE",
-          "processDefinitionSelector": {
-            "processDefinitionId": "PaymentProcess"
-          },
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
           "variables": {
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010d",
+            "expiryDate": "2027/09",
+            "customerId": "cust30",
             "orderTotal": 45.99,
-            "customerCredit": 100
+            "cvc": "123",
+            "cardNumber": "1234 5678"
           }
         },
         {
@@ -91,18 +108,51 @@
           "jobSelector": {
             "elementId": "Activity_1hu6sex",
             "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
           }
         },
         {
-          "type": "ASSERT_PROCESS_INSTANCE",
+          "type": "ASSERT_ELEMENT_INSTANCE",
           "processInstanceSelector": {
             "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Activity_1884gkf"
+          },
+          "state": "IS_ACTIVE"
+        },
+        {
+          "type": "COMPLETE_USER_TASK",
+          "userTaskSelector": {
+            "elementId": "Activity_1884gkf"
+          },
+          "variables": {
+            "expiryDate": "09/28",
+            "errorResolved": true
+          }
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_16kuby1",
+            "jobType": "credit-card-charging"
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_03bvprt"
           },
           "state": "IS_COMPLETED"
         }
       ],
       "metadata": {
-        "processInstanceId": 2251799813685539,
+        "processInstanceId": "2251800059345470",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -117,6 +167,30 @@
             "elementType": "bpmn:ExclusiveGateway"
           },
           {
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_16kuby1",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Event_1605nvk",
+            "elementType": "bpmn:BoundaryEvent"
+          },
+          {
+            "flowNodeId": "Activity_1884gkf",
+            "elementType": "bpmn:UserTask"
+          },
+          {
+            "flowNodeId": "Gateway_0kf89ck",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Gateway_00z7p4e",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
             "flowNodeId": "Gateway_02roc4u",
             "elementType": "bpmn:ExclusiveGateway"
           },
@@ -128,8 +202,121 @@
         "coveredSequenceFlows": [
           "Flow_0b7gmku",
           "Flow_15c9io5",
-          "Flow_1qqxzyh",
+          "Flow_128mjtf",
+          "Flow_08yvuv1",
+          "Flow_049390o",
+          "Flow_0j8grvl",
+          "Flow_0fp64fj",
+          "Flow_03p0gza",
+          "Flow_15d0kch",
           "Flow_056mvh2"
+        ]
+      }
+    },
+    {
+      "name": "pay-with-invalid-expiry-date-unresolved",
+      "instructions": [
+        {
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentRequestMessage",
+          "variables": {
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010e",
+            "expiryDate": "2027/09",
+            "customerId": "cust30",
+            "orderTotal": 45.99,
+            "cvc": "123",
+            "cardNumber": "1234 5678"
+          }
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_1hu6sex",
+            "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Activity_1884gkf"
+          },
+          "state": "IS_ACTIVE"
+        },
+        {
+          "type": "COMPLETE_USER_TASK",
+          "userTaskSelector": {
+            "elementId": "Activity_1884gkf"
+          },
+          "variables": {
+            "expiryDate": "2027/09",
+            "errorResolved": false
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_0rols7b"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": "2251800059345471",
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "Event_19qu0oi",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1hu6sex",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Gateway_1xthnkz",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Activity_1cfafq9",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_16kuby1",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Event_1605nvk",
+            "elementType": "bpmn:BoundaryEvent"
+          },
+          {
+            "flowNodeId": "Activity_1884gkf",
+            "elementType": "bpmn:UserTask"
+          },
+          {
+            "flowNodeId": "Gateway_0kf89ck",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Event_0rols7b",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0b7gmku",
+          "Flow_15c9io5",
+          "Flow_128mjtf",
+          "Flow_08yvuv1",
+          "Flow_049390o",
+          "Flow_0j8grvl",
+          "Flow_0b4sb6y"
         ]
       }
     }

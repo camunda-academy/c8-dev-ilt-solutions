@@ -1,0 +1,92 @@
+{
+  "processId": "OrderProcess",
+  "testCases": [
+    {
+      "name": "OrderProcess test scenario",
+      "instructions": [
+        {
+          "type": "CREATE_PROCESS_INSTANCE",
+          "processDefinitionSelector": {
+            "processDefinitionId": "OrderProcess"
+          },
+          "variables": {
+            "productId": "1",
+            "customerId": "cust30",
+            "cardNumber": "1234 5678",
+            "cvc": "123",
+            "expiryDate": "09/28"
+          },
+          "runtimeInstructions": [
+            {
+              "type": "TERMINATE_PROCESS_INSTANCE",
+              "afterElementId": "Event_0ttkttq"
+            }
+          ]
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_1uf1u3f",
+            "jobType": "io.camunda:http-json:1"
+          },
+          "variables": {
+            "productName": "Test Product",
+            "productDescription": "A fabricated product for CPT testing",
+            "productPrice": 45.99
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "OrderProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_0ttkttq"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": "2251800059344587",
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "StartEvent_1",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1omjax4",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_1uf1u3f",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Activity_1s27spe",
+            "elementType": "bpmn:SendTask"
+          },
+          {
+            "flowNodeId": "Gateway_0moymkj",
+            "elementType": "bpmn:EventBasedGateway"
+          },
+          {
+            "flowNodeId": "Event_0bpmwgs",
+            "elementType": "bpmn:IntermediateCatchEvent"
+          },
+          {
+            "flowNodeId": "Event_0ttkttq",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0gp98d1",
+          "Flow_19an4sx",
+          "Flow_0i9t8yn",
+          "Flow_1sh54oc",
+          "Flow_0p2m72y",
+          "Flow_0jku9y3"
+        ]
+      }
+    }
+  ]
+}
