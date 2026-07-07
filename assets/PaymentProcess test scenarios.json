@@ -2,29 +2,128 @@
   "processId": "PaymentProcess",
   "testCases": [
     {
-      "name": "pay-with-credit-only",
+      "name": "pay-with-credit-card",
       "instructions": [
         {
-          "type": "PUBLISH_MESSAGE",
-          "name": "paymentRequestMessage",
+          "type": "CREATE_PROCESS_INSTANCE",
+          "processDefinitionSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
           "variables": {
-            "orderTotal": 45.99,
-            "customerId": "cust70",
-            "cardNumber": "1234 5678",
-            "cvc": "123",
-            "expiryDate": "09/28"
+            "orderTotal": 500.99,
+            "customerCredit": 100
+          },
+          "runtimeInstructions": [
+            {
+              "type": "TERMINATE_PROCESS_INSTANCE",
+              "afterElementId": "Event_03bvprt"
+            }
+          ]
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_1hu6sex",
+            "jobType": "credit-deduction"
           }
         },
         {
-          "type": "ASSERT_PROCESS_INSTANCE",
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_16kuby1",
+            "jobType": "credit-card-charging"
+          },
+          "variables": {
+            "credit-card-operation-status": "success"
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
           "processInstanceSelector": {
             "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_03bvprt"
           },
           "state": "IS_COMPLETED"
         }
       ],
       "metadata": {
-        "processInstanceId": 2251800056012206,
+        "processInstanceId": "2251800057817697",
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "Event_19qu0oi",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1hu6sex",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Gateway_1xthnkz",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Activity_16kuby1",
+            "elementType": "bpmn:ServiceTask"
+          },
+          {
+            "flowNodeId": "Gateway_02roc4u",
+            "elementType": "bpmn:ExclusiveGateway"
+          },
+          {
+            "flowNodeId": "Event_03bvprt",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0b7gmku",
+          "Flow_15c9io5",
+          "Flow_128mjtf",
+          "Flow_15d0kch",
+          "Flow_056mvh2"
+        ]
+      }
+    },
+    {
+      "name": "pay-with-credit-only",
+      "instructions": [
+        {
+          "type": "CREATE_PROCESS_INSTANCE",
+          "processDefinitionSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "variables": {
+            "orderTotal": 500.99,
+            "customerCredit": 1000
+          },
+          "runtimeInstructions": [
+            {
+              "type": "TERMINATE_PROCESS_INSTANCE",
+              "afterElementId": "Event_03bvprt"
+            }
+          ]
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_1hu6sex",
+            "jobType": "credit-deduction"
+          }
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "PaymentProcess"
+          },
+          "elementSelector": {
+            "elementId": "Event_03bvprt"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": "2251800057818017",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",
@@ -48,25 +147,46 @@
           }
         ],
         "coveredSequenceFlows": [
-          "Flow_0b7gmku",
           "Flow_15c9io5",
           "Flow_1qqxzyh",
-          "Flow_056mvh2"
+          "Flow_056mvh2",
+          "Flow_0b7gmku"
         ]
       }
     },
     {
-      "name": "pay-with-credit-card",
+      "name": "pay-with-credit-card-msg",
       "instructions": [
         {
           "type": "PUBLISH_MESSAGE",
           "name": "paymentRequestMessage",
           "variables": {
-            "orderTotal": 45.99,
+            "orderId": "019f3c7f-e3d3-7687-8795-45c649be010c",
+            "expiryDate": "09/28",
             "customerId": "cust30",
-            "cardNumber": "1234 5678",
+            "orderTotal": 45.99,
             "cvc": "123",
-            "expiryDate": "09/28"
+            "cardNumber": "1234 5678"
+          }
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_1hu6sex",
+            "jobType": "credit-deduction"
+          },
+          "variables": {
+            "openAmount": 15.99
+          }
+        },
+        {
+          "type": "COMPLETE_JOB",
+          "jobSelector": {
+            "elementId": "Activity_16kuby1",
+            "jobType": "credit-card-charging"
+          },
+          "variables": {
+            "credit-card-operation-status": "success"
           }
         },
         {
@@ -78,7 +198,7 @@
         }
       ],
       "metadata": {
-        "processInstanceId": 2251800056012327,
+        "processInstanceId": "2251800059345468",
         "coveredFlowNodes": [
           {
             "flowNodeId": "Event_19qu0oi",

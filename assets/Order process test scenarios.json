@@ -1,0 +1,85 @@
+{
+  "processId": "Process_085dej6",
+  "testCases": [
+    {
+      "name": "OrderProcess test scenario",
+      "instructions": [
+        {
+          "type": "CREATE_PROCESS_INSTANCE",
+          "processDefinitionSelector": {
+            "processDefinitionId": "Process_085dej6"
+          },
+          "variables": {
+            "orderTotal": 45.99,
+            "customerId": "cust30",
+            "cardNumber": "1234 5678",
+            "cvc": "123",
+            "expiryDate": "09/28"
+          },
+          "runtimeInstructions": [
+            {
+              "type": "TERMINATE_PROCESS_INSTANCE",
+              "afterElementId": "Event_0ttkttq"
+            }
+          ]
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "Process_085dej6"
+          },
+          "elementSelector": {
+            "elementId": "Event_0bpmwgs"
+          },
+          "state": "IS_ACTIVE"
+        },
+        {
+          "type": "PUBLISH_MESSAGE",
+          "name": "paymentCompletedMessage",
+          "correlationKey": "019f3c79-9c04-7211-ba14-e13750687c28"
+        },
+        {
+          "type": "ASSERT_ELEMENT_INSTANCE",
+          "processInstanceSelector": {
+            "processDefinitionId": "Process_085dej6"
+          },
+          "elementSelector": {
+            "elementId": "Event_0ttkttq"
+          },
+          "state": "IS_COMPLETED"
+        }
+      ],
+      "metadata": {
+        "processInstanceId": "2251800059344586",
+        "coveredFlowNodes": [
+          {
+            "flowNodeId": "StartEvent_1",
+            "elementType": "bpmn:StartEvent"
+          },
+          {
+            "flowNodeId": "Activity_1omjax4",
+            "elementType": "bpmn:ScriptTask"
+          },
+          {
+            "flowNodeId": "Activity_1s27spe",
+            "elementType": "bpmn:SendTask"
+          },
+          {
+            "flowNodeId": "Event_0bpmwgs",
+            "elementType": "bpmn:IntermediateCatchEvent"
+          },
+          {
+            "flowNodeId": "Event_0ttkttq",
+            "elementType": "bpmn:EndEvent"
+          }
+        ],
+        "coveredSequenceFlows": [
+          "Flow_0gp98d1",
+          "Flow_19an4sx",
+          "Flow_1sh54oc",
+          "Flow_0jku9y3"
+        ]
+      }
+    }
+  ]
+}
