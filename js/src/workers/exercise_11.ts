@@ -136,7 +136,7 @@ async function respondToOrderProcess(job) {
 async function respondToOrderProcessFail(job) {
 
     await client.publishMessage({ correlationKey: job.variables.orderId,
-                                  name: 'paymentCompletedMessage',
+                                  name: 'paymentFailedMessage',
 	                                variables: job.variables });
 
     console.log("Responding to order process...");
