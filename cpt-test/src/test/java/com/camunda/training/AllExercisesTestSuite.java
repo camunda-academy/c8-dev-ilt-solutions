@@ -22,6 +22,8 @@ import org.junit.platform.suite.api.Suite;
   Exercise08Test.class,
   Exercise08ScenarioReplayTest.class,
   Exercise09Test.class,
-  Exercise09ScenarioReplayTest.class
+  Exercise09ScenarioReplayTest.class,
+  Exercise10Test.class,
+  Exercise10ScenarioReplayTest.class
 })
 class AllExercisesTestSuite {}
