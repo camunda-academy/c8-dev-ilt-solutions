@@ -1,200 +1,119 @@
-# Plan: test all exercises from `integration-test`
+# CPT harness across all exercises
 
-Design for running **every exercise against every language in one command**. Single-exercise testing
-(`run-exercise.sh`, one branch at a time via `git worktree`) is **built and validated**. Looping over
-every exercise branch automatically (`run-all-exercises.sh`) is **not yet built** — see "What's left"
-below.
+## Architecture
 
-Supersedes an earlier design (harness duplicated on every exercise branch), abandoned as cumbersome
-once actually tried.
+- **`integration-test`** (orphan branch) owns the ONE `cpt-test/` Maven module: `pom.xml`,
+  `start-runtime.sh`, `run-exercise.sh`, `preflight.sh`, `env.local.sh`, `Languages.java`, and one
+  `ExerciseNNTest.java` + `ExerciseNNScenarioReplayTest.java` pair per exercise. No worker code, no
+  `assets/` — `git ls-tree` on this branch shows only `.gitignore`, `CLAUDE.md`, `README.md`,
+  `cpt-test/`.
+- **Exercise branches** (`exercise-05` ... `exercise-12` today) carry ONLY worker source
+  (`python/`, `csharp/`, `js/`, `java/`, `java-spring/`) and `assets/` (BPMN/DMN/form files +
+  Camunda Play scenario JSON). No `cpt-test/` on these branches.
+- `git worktree add tmp exercise-NN` pulls one exercise branch's worker code + assets onto disk so
+  `integration-test`'s test suite can run against them, without touching either branch's own
+  checkout.
 
-## Model B: one harness on `integration-test`, workers sourced from exercise branches
+## Running the tests
 
-- **`integration-test`** owns the ONE and ONLY `cpt-test/` module — `pom.xml`, `run-exercise.sh`,
-  `preflight.sh`, `env.local.sh`, `Languages.java`, one `ExerciseNNTest.java` per exercise,
-  `start-runtime.sh`. **Built**: this branch exists (orphan root commit, no shared history with
-  `main`/exercise branches on purpose) and contains exactly this — no worker code, no `assets/`.
-- **Exercise branches** (`exercise-01`, `exercise-05`, ...) carry ONLY worker source (`python/`,
-  `csharp/`, `js/`, `java/`, `java-spring/`) and `assets/` (BPMN + Camunda Play scenario JSON). No
-  `cpt-test/` on these branches.
-- `git worktree` pulls one exercise branch's worker code + assets onto disk so `integration-test`'s
-  test suite can exercise them, without disturbing either branch's own checkout.
-
-## How it works today — `run-exercise.sh` + `WORKTREE=`
-
-**Built and validated** (2026-07-03, all 4 languages, real runtime, real workers):
+Single exercise, every available language (skips languages with no implementation on that
+branch):
 
 ```bash
-cd "<repo root>"
-git worktree add tmp exercise-05      # pull one exercise's worker code + assets/ onto disk
+git worktree add tmp exercise-05
 cd cpt-test
-WORKTREE=../tmp ./run-exercise.sh     # preflight -> start runtime -> per language: start worker,
-                                       # run tests, stop worker -> stop runtime -> results/report.md
-git worktree remove tmp
+WORKTREE=../tmp ./run-exercise.sh          # or: ./run-exercise.sh python js  (specific languages)
+git worktree remove ../tmp
 ```
 
-`WORKTREE` (shell) and `-DworktreeDir` (the matching Java system property, read by
-`Languages.repoRoot()`) both default to `cpt-test`'s own sibling directory — the old
-same-branch layout still works unchanged if you omit them. See `cpt-test/README.md` for the
-user-facing version of this (prerequisites, command, expected output).
+`run-exercise.sh` derives the exercise number from `WORKTREE`'s checked-out branch name, runs
+preflight (auto-fixes missing venvs/`node_modules`), starts (or reuses) a local Camunda runtime,
+then for each available language: starts that worker, runs `ExerciseNNTest` +
+`ExerciseNNScenarioReplayTest` against it, stops the worker. Writes `results/report.md` plus
+per-language Surefire reports and worker logs under `results/<language>/`.
 
-**What changed in the scripts to make this work:**
-- `run-exercise.sh` / `preflight.sh`: added `WORKTREE=` (all `${REPO_ROOT}/<lang>` paths became
-  `${WORKTREE}/<lang>`), added `java-spring` as a 4th language (`ALL_LANGS`, `lang_available`,
-  `lang_start`, `check_java_spring`), fixed a real bug where `parse_surefire()` only read the LAST
-  matching Surefire `.txt` file instead of summing across every test class in a `-Dtest=A,B` run
-  (silently under-reported totals once `Exercise05ScenarioReplayTest` was added alongside
-  `Exercise05Test`), and now passes `-DworktreeDir` through to `mvn test`.
-- `env.local.sh`: added `CAMUNDA_CLIENT_MODE=self-managed` / `CAMUNDA_CLIENT_AUTH_METHOD=none` for
-  java-spring (it uses Spring's own `CAMUNDA_CLIENT_*` binding convention, not `CAMUNDA_AUTH_STRATEGY`
-  like the other three).
-- `Languages.java`: `repoRoot()` now reads `-DworktreeDir` if set, else falls back to its old
-  behavior (parent of `cpt-test`'s own directory) — this is the ONLY Java-side change; the
-  directory-scan-and-deploy-all generalization discussed earlier was **not** done — `Exercise05Test`
-  still deploys `Payment Process.bpmn` by name via `addResourceFile`. Fine for one BPMN per exercise;
-  revisit if an exercise needs multiple deployable files.
+There's no `run-all-exercises.sh` yet — looping this over every exercise branch is a one-off
+shell loop around the same `WORKTREE=`/`git worktree` pattern, reusing the already-running runtime
+across branches (the script already supports this via its `runtime_ready` check).
 
-**Fixed 2026-07-03 (real bug, caught by the user, not by design): `run-exercise.sh` still hardcoded
-exercise-05.** Adding `WORKTREE=` (above) generalized the *worker code path*, but the JS worker
-filename (`exercise_5.ts`) and the Java test class (`Exercise05Test,Exercise05ScenarioReplayTest`)
-were left as literal strings — meaning the script only ever tested exercise-05 regardless of which
-branch `WORKTREE` pointed at. Fixed by deriving the exercise number from `WORKTREE`'s checked-out
-branch name (`git -C "$WORKTREE" branch --show-current`, must match `exercise-NN`) and:
-- Building `JS_WORKER_FILE="exercise_${EXERCISE_NUM}.ts"` for the JS `lang_available`/`lang_start`
-  checks (previously hardcoded `exercise_5.ts`).
-- Building `TEST_CLASSES` from `Exercise${EXERCISE_NUM}Test` (+ `Exercise${EXERCISE_NUM}
-  ScenarioReplayTest` if that class exists in `cpt-test/src/test/java/...`), passed as `-Dtest=` to
-  `mvn test`.
-- If `WORKTREE`'s branch doesn't match `exercise-NN`, or `Exercise${EXERCISE_NUM}Test.java` doesn't
-  exist in `cpt-test` yet, the script exits early with a clear message (before starting Docker/any
-  worker) rather than silently testing the wrong exercise or crashing deep into a run.
-Validated: ran successfully against `exercise-05` (3/3 passed) and correctly refused to run against
-`exercise-06` (no `Exercise06Test.java` written yet — exits cleanly with an explanatory message).
+## Per-exercise coverage (exercise-05 through exercise-12)
 
-**Also fixed 2026-07-03 (user's second catch): `SPRING_PROFILES_ACTIVE` was heavier than needed.**
-Both `start-runtime.sh` and `run-exercise.sh` booted
-`broker,consolidated-auth,operate,tasklist,identity`. Researched against Camunda's own architecture
-docs and internal testcontainer defaults: in the 8.8+ unified distribution the `broker` profile alone
-serves the v2 REST API (deploy/create-instance/search) and the RDBMS exporter `CamundaAssert` reads
-from — `operate`/`tasklist` are UI-webapp-only profiles, `consolidated-auth`/`identity` govern the
-shared login/authorization layer which is moot under
-`CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTEDAPI=true` +
-`CAMUNDA_SECURITY_AUTHORIZATIONS_ENABLED=false` (already set). Changed both scripts to
-`SPRING_PROFILES_ACTIVE=broker` alone. Validated: re-ran the exercise-05 end-to-end test with only
-`broker` active — still 3/3 passed. Caveat from the research: this is inferred from Camunda's
-internal test scaffolding (`broker,standalone` in `camunda/camunda`'s own `CamundaContainer.java`),
-not from an explicit "minimal CI profile" doc page — re-verify if a future Camunda version changes
-this, or if an exercise ever needs user-task/Tasklist-specific behavior (none do today — all
-exercises 05-12 are service-task only).
+Every exercise has a hand-written `ExerciseNNTest` (happy path + the exercise's specific feature)
+and an `ExerciseNNScenarioReplayTest` (replays the Camunda Play-recorded `assets/*.json` scenarios
+via the CPT JSON test-case API, real worker completes the jobs). Validated end-to-end, all
+available languages, against a live runtime + real workers:
 
-## Per-language state on `exercise-05` (as of 2026-07-03)
+| Exercise | Feature | Notes |
+| --- | --- | --- |
+| 05 | Payment Process happy path | credit sufficient / insufficient branches |
+| 06 | + card fee script task | |
+| 07 | Order + Payment Process, message correlation | two processes, async invoke |
+| 08 | Incidents | invalid expiry date → job fails with `retries=0` → incident on `credit-card-charging` |
+| 09 | BPMN errors | invalid expiry date → `ThrowError` → boundary event → dedicated failure path (`OrderProcess` gets an event-based gateway racing success/failure messages) |
+| 10 | User tasks | boundary event now routes to a "Check failed payment data" user task; test completes it directly via `newCompleteUserTaskCommand`, either resolving (retries the charge) or not (routes to failure) |
+| 11 | Connectors | `OrderProcess` gained an HTTP-JSON connector step (`Fetch product info`, calls dummyjson.com) feeding `orderTotal`; test stubs this job (activates + completes it manually with fabricated data) instead of calling the real API — no Connector Runtime container in this setup, and the endpoint needs a real, expiring bearer token |
+| 12 | DMN | `OrderProcess` gained a business rule task evaluating `Order Discount DRD.dmn` against the (stubbed) `productPrice`; the DMN itself runs for real (broker evaluates it directly, no separate runtime needed) |
 
-All 4 languages validated end-to-end (`Exercise05Test` 2/2 + `Exercise05ScenarioReplayTest` 1/1,
-against a live runtime + real worker, via `run-exercise.sh`):
+Language availability varies per branch — `python` has no implementation on exercise-11/12 (empty
+`python/` folder, just `.gitkeep`); `Languages.isAvailable()` detects this and the test class skips
+that language cleanly rather than failing.
 
-| Language    | Auth pattern                                    | Code change needed? |
-| ----------- | ------------------------------------------------ | -------------------- |
-| csharp      | env-var-first (`Camunda.Orchestration.Sdk 9.*`)   | No — already done    |
-| java-spring | `CAMUNDA_CLIENT_*` env vars via Spring auto-config | No — framework handles it; `application.yml` still hardcodes SaaS as the only committed default (works today because env vars override it, but not committed as the default) |
-| python      | env-var-first (`web_shop.py`)                     | Yes — **done**, committed locally to `exercise-05` (`05b385b`) |
-| js          | env-var-first (`exercise_5.ts`)                   | Yes — **done**, committed locally to `exercise-05` (`1b5e7ed`), plus added missing `package.json`/`tsconfig.json` (there was no npm scaffolding at all) |
+## Known recurring bug (fixed independently on each branch)
 
-Both `exercise-05` commits are **local only, not pushed** — holding per user's request until
-reviewed. `js` also needs `--transpile-only` when running `ts-node` because of two pre-existing,
-unrelated type errors in `exercise_5.ts` (job-handler return type) — not fixed, out of scope for the
-auth change.
+Exercises 09 through 12 each independently reintroduced the same JS bug: `respondToOrderProcessFail`
+(the `payment-failure` job handler) was copy-pasted from the success handler and published
+`paymentCompletedMessage` instead of `paymentFailedMessage`, breaking `OrderProcess`'s
+event-based-gateway failure routing. Fixed with a one-line commit on each branch as it was found
+(each branch was cut before the previous branch's fix landed, so the branches are independent, not
+stacked). Worth checking for on any new exercise branch before assuming the failure path works:
+`grep -A3 respondToOrderProcessFail js/src/workers/exercise_*.ts`.
 
-## Worker completion — scenario replay, not hand-written happy paths only
+Exercise-08/09/10/11/12's `PaymentProcess`/`Order process test scenarios.json` also needed
+rebuilding from the stale pre-fix version more than once, for the same reason (each branch cut
+before the fix). `Payment Process.bpmn` itself is unchanged since exercise-08, so once fixed on one
+branch, that scenario JSON can just be copied to the next as a starting point — verify the BPMN
+really is unchanged first (`git show <prev-branch>:"assets/Payment Process.bpmn" | diff - "assets/Payment Process.bpmn"`).
 
-Each exercise's `assets/` includes a Camunda Play scenario export (e.g.
-`PaymentProcess test scenarios.json`). `ExerciseNNTest` (well, specifically
-`Exercise05ScenarioReplayTest` — see below) loads it via the CPT JSON test-case API
-(`TestCasesReader` / `CamundaTestCaseRunner`), **strips `COMPLETE_JOB` instructions**, and replays the
-rest — so the REAL worker completes jobs, not the test driver.
+## Versioning constraint
 
-**Validated end-to-end** for exercise-05, all 4 languages. Not yet tried for any other exercise (no
-scenario JSON exists yet for exercises other than 05 — that's the user's own next task, tracked
-separately).
-
-Note: `Exercise05Test` (hand-written, 2 `@Test` methods) and `Exercise05ScenarioReplayTest`
-(JSON-replay, 1 `@Test` method) currently coexist as separate classes covering overlapping ground —
-not yet consolidated. Fine for now; revisit once more exercises are added and the pattern repeats.
-
-### Coverage requirement
-
-**Every service task in an exercise must be covered** by at least one scenario — not just a
-happy-path subset. Check by confirming every service task appears in at least one scenario's
-`coveredFlowNodes` (Play records this metadata per scenario).
-
-### Incident / BPMN-error paths are exercise-specific, not a general mechanism
-
-Exercise-08 (incidents) and exercise-09 (BPMN errors) each need exactly ONE worker/service task's
-failure path tested — hand-written, not derived from Play (Play only records happy-path runs). Do
-**not** build a general per-exercise failure-simulation mechanism — considered and explicitly
-rejected. The CPT JSON schema's `RESOLVE_INCIDENT` and
-`MOCK_JOB_WORKER_THROW_BPMN_ERROR`/`THROW_BPMN_ERROR_FROM_JOB` instruction types are the natural fit
-for these two exercises specifically, when built.
-
-## Versioning: alpha replay API requires a version-matched stack
-
-The scenario-replay API (`TestCasesReader`, `CamundaTestCaseRunner`) only exists in
+The CPT JSON scenario-replay API (`TestCasesReader`, `CamundaTestCaseRunner`) only exists in
 `io.camunda:camunda-process-test-java` / `io.camunda:camunda-process-test-json-test-cases` version
-**`8.10.0-alpha3-rc2`** (as of 2026-07-02/03) — not in any 8.7–8.9 stable release, undocumented on
-docs.camunda.io.
+`8.10.0-alpha3-rc2` — not in any 8.7-8.9 stable release, undocumented on docs.camunda.io. The Docker
+runtime image must be pinned to the SAME version (`camunda/camunda:8.10.0-alpha3-rc2` in both
+`start-runtime.sh` and `run-exercise.sh`) — a version mismatch between client and broker breaks
+`CamundaAssert` with a `400 Bad Request` on the alpha-only filter shape the client sends. Re-check
+this constraint once a stable Camunda release ships the replay API.
 
-**Client and broker versions must be kept in lockstep** — confirmed the hard way. Bumping only
-`cpt-test/pom.xml`'s `camunda.version` while leaving the Docker runtime on stable `8.9.6` broke
-`CamundaAssert...hasCompletedElements(...)` with `400 Bad Request: Request property [filter.$or]
-cannot be parsed` (the alpha client sends a filter shape the 8.9.6 REST gateway rejects). Fix: both
-`cpt-test/start-runtime.sh` and `cpt-test/run-exercise.sh` pin the SAME `camunda/camunda:
-8.10.0-alpha3-rc2` image as the pom's `camunda.version`. **Done, both files updated and verified.**
+## GitHub Actions: what it would take
 
-Re-check this constraint once a stable Camunda release ships the replay API.
+Not built yet. Researched, not blocking at current scale (8-12 exercises).
 
-Worker-side SDK versions (python `camunda-orchestration-sdk`, C# `Camunda.Orchestration.Sdk`, JS
-`@camunda8/orchestration-cluster-api`) are independent of this and unaffected — they talk to the
-broker over a stable, long-supported subset of the API, unrelated to the alpha-only `filter.$or`
-query CPT's own assertions introduced.
+**Triggering.** `on.push.paths-ignore` (e.g. ignore `**.md`) works fine per-branch for skipping
+doc-only changes — no branch-specific logic needed there. But a push to `integration-test` (the
+harness itself) needs to fan out and re-test EVERY exercise branch, not just re-run in place; that
+fan-out is a job-level concern (list `exercise-*` branches, feed a matrix), not something the
+trigger block itself can express.
 
-## What's left
+**Checkout.** The direct equivalent of local `git worktree add tmp exercise-NN` is two
+`actions/checkout@v4` steps in one job with different `ref:`/`path:` — one for `integration-test`,
+one for the exercise branch (or `${{ matrix.exercise }}`). `WORKTREE` then just points at the
+second checkout's path, unchanged from how the script already works locally.
 
-The single-exercise flow (`run-exercise.sh` + `WORKTREE=`) is done. What remains is looping it over
-every exercise branch automatically:
+**Docker.** GitHub-hosted `ubuntu-latest` runners have Docker preinstalled; the existing scripts'
+raw `docker run`/`docker rm` calls work as plain `run:` steps, no `services:` sidecar or DinD setup
+needed.
 
-1. **Write `run-all-exercises.sh`** — not started. Shape:
-   ```bash
-   start runtime ONCE
-   for branch in $(git branch -r | grep 'exercise-'):     # auto-discover
-       git worktree remove tmp --force 2>/dev/null || true   # defensive: stale prior run
-       git worktree add tmp "$branch"
-       WORKTREE=tmp <run the per-language loop that run-exercise.sh already does, but reusing
-                     the ALREADY-RUNNING runtime instead of starting/stopping it each time>
-       git worktree remove tmp
-       collect this branch's row(s) into the aggregate report
-   aggregate -> one exercise × language matrix report
-   stop runtime
-   ```
-   `run-exercise.sh` already reuses an already-running runtime via its `runtime_ready` check, so the
-   per-branch inner loop can mostly reuse it directly (e.g. `WORKTREE=tmp ./run-exercise.sh`) rather
-   than reimplementing worker start/stop — needs the outer aggregation (per-branch report rows →
-   one combined table) added on top.
-2. **Author scenario JSON + `ExerciseNNTest` for each remaining exercise** — exercise-05 is the only
-   one with scenarios today. This is the user's own task, in progress separately.
-3. **Exercise-08 / exercise-09 hand-written failure-path tests** (incidents / BPMN errors) — lowest
-   priority, deferred until more of the harness is in place.
-4. Push the two local-only `exercise-05` commits (JS + python auth fixes) once reviewed.
+**Cost.** Matrix by exercise only (not exercise × language — `run-exercise.sh` already loops
+languages internally with skip-on-missing). Rough estimate: ~90-180s per language-run cold,
+~40-70s with `~/.m2`/`node_modules`/pip/NuGet caches warm via `actions/cache`. Full run today (8
+exercises × up to 4 languages ≈ 32 language-runs): ~80 minutes of billed job-minutes uncached,
+dropping meaningfully with dependency caching. **Dependency install (npm/pip/dotnet/mvn) dominates
+the cost, not the Docker image pull (~30-90s, paid once per job) or actual test execution
+(5-12s).** Parallelizing across jobs buys wall-clock speed, not lower total billed minutes (GHA
+bills the sum of job-minutes). Well within the private-repo free tier (2,000 min/month) unless this
+runs many times a day — confirm repo visibility before treating cost as a real constraint.
 
-## Future constraint: this should eventually run as a GitHub Action
-
-Not acted on yet, but worth designing for from the start:
-
-- **No interactive prompts** — `run-exercise.sh`'s preflight already guards on
-  `[[ ! -t 0 || YES=1 ]]`; keep this in `run-all-exercises.sh` too.
-- **Docker must "just work"** — GitHub-hosted runners ship Docker preinstalled.
-- **No reliance on locally-cached tool state** — venvs/`node_modules`/NuGet must install fresh
-  (already true: `run-exercise.sh` calls `pip install`/`npm install` explicitly, doesn't assume them).
-- **Nothing GUI-driven or requiring a human to start a worker** — already satisfied by
-  `run-exercise.sh`'s design.
-
-No CI YAML written yet; this is a constraint to keep satisfied while building the harness, not a
-separate task.
+**Before building:** confirm repo visibility (private free-tier minutes vs. public unlimited);
+spike the dynamic branch-discovery step for the fan-out matrix (list `exercise-*` branches → JSON →
+`fromJSON` in `strategy.matrix`); consider pinning the alpha image by digest rather than mutable tag
+if a CI run's reproducibility matters.
