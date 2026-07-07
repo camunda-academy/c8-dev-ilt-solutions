@@ -14,3 +14,4 @@ jobs:
     uses: camunda-academy/c8-dev-ilt-solutions/.github/workflows/cpt-reusable.yml@integration-test
     with:
       exercise-branch: ${{ github.ref_name }}
+# trigger test: real diff on this file to confirm push events fire correctly
