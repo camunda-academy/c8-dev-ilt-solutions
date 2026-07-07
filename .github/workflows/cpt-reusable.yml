@@ -1,0 +1,87 @@
+name: CPT tests (reusable)
+
+# Lives ONLY on integration-test. Called by the tiny per-branch stub workflow committed on each
+# exercise-NN branch (.github/workflows/test.yml) — see cpt-test/ALL-EXERCISES-PLAN.md.
+#
+# Checks out this branch (integration-test, for the harness) and the target exercise branch (for
+# worker code + assets) side by side, then runs the same run-exercise.sh a developer runs locally.
+
+on:
+  workflow_call:
+    inputs:
+      exercise-branch:
+        description: "Exercise branch to test (e.g. exercise-08)"
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: harness/cpt-test
+    steps:
+      - name: Checkout harness (integration-test)
+        uses: actions/checkout@v4
+        with:
+          path: harness
+
+      - name: Checkout exercise branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.exercise-branch }}
+          path: worktree
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: harness/cpt-test/pom.xml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "23"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Per-language dependency caches — see cpt-test/ALL-EXERCISES-PLAN.md's cost notes; these are
+      # the dominant cost lever. Cache keys are best-effort (lockfiles may not exist on every
+      # branch/language); a miss just falls back to a fresh install, same as running locally.
+      - uses: actions/cache@v4
+        with:
+          path: worktree/python/.venv
+          key: ${{ runner.os }}-venv-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/python/requirements.txt') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: worktree/js/node_modules
+          key: ${{ runner.os }}-npm-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/js/package-lock.json') }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('worktree/csharp/**/*.csproj') }}
+
+      - name: Run CPT tests for ${{ inputs.exercise-branch }}
+        env:
+          WORKTREE: ${{ github.workspace }}/worktree
+          # actions/checkout leaves a detached HEAD, so run-exercise.sh can't derive the exercise
+          # number from `git branch --show-current` — pass it explicitly instead.
+          WORKTREE_BRANCH: ${{ inputs.exercise-branch }}
+          YES: "1"
+        run: ./run-exercise.sh
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpt-results-${{ inputs.exercise-branch }}
+          path: harness/cpt-test/results/
+          retention-days: 14

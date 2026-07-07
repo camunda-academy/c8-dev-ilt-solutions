@@ -44,7 +44,9 @@ REPORT_MD="${RESULTS_DIR}/report.md"
 
 # ---- which exercise ------------------------------------------------------------
 # Derived from WORKTREE's checked-out branch name (e.g. "exercise-07" -> "07" -> Exercise07Test).
-WORKTREE_BRANCH="$(git -C "${WORKTREE}" branch --show-current 2>/dev/null)"
+# Override with WORKTREE_BRANCH= when WORKTREE is checked out via `actions/checkout` with a `ref:`
+# (leaves a detached HEAD, so `git branch --show-current` returns nothing there).
+WORKTREE_BRANCH="${WORKTREE_BRANCH:-$(git -C "${WORKTREE}" branch --show-current 2>/dev/null)}"
 EXERCISE_NUM="$(sed -nE 's/^exercise-([0-9]+)$/\1/p' <<<"${WORKTREE_BRANCH}")"
 if [[ -z "${EXERCISE_NUM}" ]]; then
   echo "[err] WORKTREE (${WORKTREE}) is not checked out to an 'exercise-NN' branch (got: '${WORKTREE_BRANCH:-<none>}')." >&2
