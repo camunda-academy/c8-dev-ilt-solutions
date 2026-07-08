@@ -9,7 +9,7 @@ namespace Camunda.Training.CSharp.Workers
             Console.WriteLine($"Handling credit-deduction job: {job.JobKey}");
 
             // Returning these variables auto-completes the job.
-            return Task.FromResult<object?>(new { processed = true });
+            return Task.FromResult<object?>(new { processedxxx = true });
         }
     }
 }
