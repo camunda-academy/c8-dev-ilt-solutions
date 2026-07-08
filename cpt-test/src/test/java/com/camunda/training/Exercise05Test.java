@@ -79,7 +79,9 @@ class Exercise05Test {
         createInstance(Map.of("orderTotal", 45.99, "customerCredit", 20));
 
     // then: the full path is taken (deduct credit -> charge card) and the process completes.
-    CamundaAssert.assertThat(instance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(instance)
         .hasCompletedElements(
             START,
@@ -88,6 +90,7 @@ class Exercise05Test {
             CHARGE_CARD,
             GATEWAY_MERGE,
             END);
+    CamundaAssert.assertThat(instance).isCompleted();
   }
 
   @Test
@@ -101,10 +104,10 @@ class Exercise05Test {
         createInstance(Map.of("orderTotal", 45.99, "customerCredit", 100));
 
     // then: card charging is skipped (gateway "Yes" branch) and the process completes.
-    CamundaAssert.assertThat(instance).isCompleted();
     CamundaAssert.assertThat(instance)
         .hasCompletedElements(START, DEDUCT_CREDIT, GATEWAY_CREDIT_SUFFICIENT, GATEWAY_MERGE, END);
     CamundaAssert.assertThat(instance).hasNotActivatedElements(CHARGE_CARD);
+    CamundaAssert.assertThat(instance).isCompleted();
   }
 
   private void deploy() {

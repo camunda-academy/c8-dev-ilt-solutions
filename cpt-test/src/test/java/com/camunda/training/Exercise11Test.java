@@ -137,7 +137,9 @@ class Exercise11Test {
     completeFetchProductInfoJob();
 
     // then: OrderProcess takes the success branch off the event-based gateway.
-    CamundaAssert.assertThat(orderInstance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(orderInstance)
         .hasCompletedElements(
             ORDER_START,
@@ -147,10 +149,13 @@ class Exercise11Test {
             ORDER_GATEWAY,
             PAYMENT_COMPLETED_CATCH,
             ORDER_COMPLETED_END);
+    CamundaAssert.assertThat(orderInstance).isCompleted();
 
     // and: PaymentProcess completed without ever touching the boundary event or the user task,
     // using the connector's productPrice as orderTotal.
-    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
         .hasCompletedElements(
             PAYMENT_START,
@@ -161,6 +166,7 @@ class Exercise11Test {
             CHARGE_CARD,
             GATEWAY_MERGE,
             PAYMENT_END);
+    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
         .hasNotActivatedElements(CHARGING_FAILED_BOUNDARY, CHECK_FAILED_PAYMENT, PAYMENT_FAILED_END);
   }
@@ -192,7 +198,9 @@ class Exercise11Test {
 
     // then: credit-card-charging is retried (without a second boundary-event trip) and succeeds,
     // so PaymentProcess completes on its success end event, same as the happy path.
-    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
         .hasCompletedElements(
             PAYMENT_START,
@@ -206,11 +214,14 @@ class Exercise11Test {
             CHARGE_CARD,
             GATEWAY_MERGE,
             PAYMENT_END);
+    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).hasNotActivatedElements(PAYMENT_FAILED_END);
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).hasCompletedElement(CHARGE_CARD, 1);
 
     // and: OrderProcess sees the eventual success, not the intermediate failure.
-    CamundaAssert.assertThat(orderInstance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(orderInstance)
         .hasCompletedElements(
             ORDER_START,
@@ -220,6 +231,7 @@ class Exercise11Test {
             ORDER_GATEWAY,
             PAYMENT_COMPLETED_CATCH,
             ORDER_COMPLETED_END);
+    CamundaAssert.assertThat(orderInstance).isCompleted();
     CamundaAssert.assertThat(orderInstance)
         .hasNotActivatedElements(PAYMENT_FAILED_CATCH, ORDER_FAILED_END);
   }
@@ -250,7 +262,9 @@ class Exercise11Test {
     // then: PaymentProcess routes to its failure end event without ever retrying the charge.
     // Gateway_00z7p4e still activates once — it also sits on the FIRST attempt's path (from the
     // card-fee script task), before credit-card-charging ever fails.
-    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
         .hasCompletedElements(
             PAYMENT_START,
@@ -262,11 +276,14 @@ class Exercise11Test {
             CHECK_FAILED_PAYMENT,
             RESOLVABLE_GATEWAY,
             PAYMENT_FAILED_END);
+    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).hasNotActivatedElements(PAYMENT_END);
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).hasTerminatedElements(CHARGE_CARD);
 
     // and: OrderProcess's event-based gateway takes the failure branch.
-    CamundaAssert.assertThat(orderInstance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(orderInstance)
         .hasCompletedElements(
             ORDER_START,
@@ -276,6 +293,7 @@ class Exercise11Test {
             ORDER_GATEWAY,
             PAYMENT_FAILED_CATCH,
             ORDER_FAILED_END);
+    CamundaAssert.assertThat(orderInstance).isCompleted();
     CamundaAssert.assertThat(orderInstance)
         .hasNotActivatedElements(PAYMENT_COMPLETED_CATCH, ORDER_COMPLETED_END);
   }

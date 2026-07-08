@@ -115,14 +115,19 @@ class Exercise08Test {
                 "expiryDate", "09/28"));
 
     // then: OrderProcess runs end-to-end.
-    CamundaAssert.assertThat(orderInstance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(orderInstance)
         .hasCompletedElements(
             ORDER_START, GENERATE_ORDER_ID, INVOKE_PAYMENT, PAYMENT_COMPLETED_CATCH, ORDER_END);
+    CamundaAssert.assertThat(orderInstance).isCompleted();
 
     // and: the indirectly-started PaymentProcess ran the full path (deduct credit -> fee -> charge
     // card) and completed, with no incidents.
-    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
         .hasCompletedElements(
             PAYMENT_START,
@@ -132,6 +137,7 @@ class Exercise08Test {
             CHARGE_CARD,
             GATEWAY_MERGE,
             PAYMENT_END);
+    CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID)).isCompleted();
     // Exact equality would be brittle here: each language computes 45.99 - 30 with its own
     // floating-point rounding, so compare with a small tolerance instead of an exact match.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))

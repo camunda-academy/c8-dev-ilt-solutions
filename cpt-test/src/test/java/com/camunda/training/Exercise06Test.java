@@ -96,7 +96,9 @@ class Exercise06Test {
 
     // then: the full path is taken (deduct credit -> fee -> charge card) and the process
     // completes, with the fee having been applied on top of the deducted amount.
-    CamundaAssert.assertThat(instance).isCompleted();
+    // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
+    // never finished — asserting isCompleted() first would just time out with a generic
+    // "was active" message and no indication of where.
     CamundaAssert.assertThat(instance)
         .hasCompletedElements(
             START,
@@ -106,6 +108,7 @@ class Exercise06Test {
             CHARGE_CARD,
             GATEWAY_MERGE,
             END);
+    CamundaAssert.assertThat(instance).isCompleted();
     // Exact equality would be brittle here: each language computes 45.99 - 30 with its own
     // floating-point rounding (e.g. Python yields 15.990000000000002, not 15.99), so compare
     // with a small tolerance instead of an exact match.
@@ -136,10 +139,10 @@ class Exercise06Test {
 
     // then: the card fee and card charging are skipped (gateway "Yes" branch) and the process
     // completes with a non-positive openAmount.
-    CamundaAssert.assertThat(instance).isCompleted();
     CamundaAssert.assertThat(instance)
         .hasCompletedElements(START, DEDUCT_CREDIT, GATEWAY_CREDIT_SUFFICIENT, GATEWAY_MERGE, END);
     CamundaAssert.assertThat(instance).hasNotActivatedElements(ADD_CARD_FEE, CHARGE_CARD);
+    CamundaAssert.assertThat(instance).isCompleted();
   }
 
   private void deploy() {
