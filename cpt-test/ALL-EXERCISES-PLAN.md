@@ -84,36 +84,66 @@ runtime image must be pinned to the SAME version (`camunda/camunda:8.10.0-alpha3
 `CamundaAssert` with a `400 Bad Request` on the alpha-only filter shape the client sends. Re-check
 this constraint once a stable Camunda release ships the replay API.
 
-## GitHub Actions: what it would take
+## GitHub Actions: built, per-branch (not batched)
 
-Not built yet. Researched, not blocking at current scale (8-12 exercises).
+Every push to an exercise branch tests ONLY that branch — not a fan-out across all of them (rarely
+needed in practice; see "Running all exercises" above for the manual batch option when it is).
 
-**Triggering.** `on.push.paths-ignore` (e.g. ignore `**.md`) works fine per-branch for skipping
-doc-only changes — no branch-specific logic needed there. But a push to `integration-test` (the
-harness itself) needs to fan out and re-test EVERY exercise branch, not just re-run in place; that
-fan-out is a job-level concern (list `exercise-*` branches, feed a matrix), not something the
-trigger block itself can express.
+**How it's wired:**
+- `.github/workflows/cpt-reusable.yml` lives ONLY on `integration-test`. It's the real logic: checks
+  out `integration-test` (harness) and the triggering branch (worker code) into `harness/` and
+  `worktree/` side by side, sets up all 4 language toolchains with dependency caching, runs
+  `run-exercise.sh`, uploads `results/` as a build artifact.
+- `.github/workflows/test.yml` is a ~10-line stub, byte-identical on `main` and every
+  `exercise-NN` branch. It triggers on push (`paths-ignore: ['**.md']`, so doc-only changes don't
+  run anything) and calls the reusable workflow with `exercise-branch: ${{ github.ref_name }}`.
 
-**Checkout.** The direct equivalent of local `git worktree add tmp exercise-NN` is two
-`actions/checkout@v4` steps in one job with different `ref:`/`path:` — one for `integration-test`,
-one for the exercise branch (or `${{ matrix.exercise }}`). `WORKTREE` then just points at the
-second checkout's path, unchanged from how the script already works locally.
+**Editing test behavior:** change `cpt-reusable.yml` once, on `integration-test`, and push — every
+exercise branch picks it up automatically next time it's triggered (the stub always resolves
+`@integration-test` fresh at call time). Never edit the stub itself unless the calling convention
+changes (e.g. a new required input).
 
-**Docker.** GitHub-hosted `ubuntu-latest` runners have Docker preinstalled; the existing scripts'
-raw `docker run`/`docker rm` calls work as plain `run:` steps, no `services:` sidecar or DinD setup
-needed.
+### Adding a new exercise branch — do this or nothing will run
 
-**Cost.** Matrix by exercise only (not exercise × language — `run-exercise.sh` already loops
-languages internally with skip-on-missing). Rough estimate: ~90-180s per language-run cold,
-~40-70s with `~/.m2`/`node_modules`/pip/NuGet caches warm via `actions/cache`. Full run today (8
-exercises × up to 4 languages ≈ 32 language-runs): ~80 minutes of billed job-minutes uncached,
-dropping meaningfully with dependency caching. **Dependency install (npm/pip/dotnet/mvn) dominates
-the cost, not the Docker image pull (~30-90s, paid once per job) or actual test execution
-(5-12s).** Parallelizing across jobs buys wall-clock speed, not lower total billed minutes (GHA
-bills the sum of job-minutes). Well within the private-repo free tier (2,000 min/month) unless this
-runs many times a day — confirm repo visibility before treating cost as a real constraint.
+**The #1 way to break CI silently: forgetting the stub.** A branch with no
+`.github/workflows/test.yml` produces zero signal on push — no failure, no email, nothing. This
+happened once already (exercise-06, 2026-07-08) before the stub was rolled out everywhere.
 
-**Before building:** confirm repo visibility (private free-tier minutes vs. public unlimited);
-spike the dynamic branch-discovery step for the fan-out matrix (list `exercise-*` branches → JSON →
-`fromJSON` in `strategy.matrix`); consider pinning the alpha image by digest rather than mutable tag
-if a CI run's reproducibility matters.
+Checklist for exercise-NN:
+1. Branch it from `main` (or the previous exercise), as usual.
+2. Copy `.github/workflows/test.yml` onto it, unmodified, from any existing exercise branch or
+   `main`. This file never has branch-specific content — if you're tempted to edit it, don't;
+   put that logic in `cpt-reusable.yml` on `integration-test` instead.
+3. On `integration-test`: write `ExerciseNNTest.java` + `ExerciseNNScenarioReplayTest.java`, add
+   both to `AllExercisesTestSuite.java`.
+4. Push the exercise branch. Check the Actions tab, filter by branch — confirm a run actually
+   appears. If it doesn't, re-check step 2 first.
+5. Push `integration-test`. This does NOT automatically re-test exercise-NN — the reusable workflow
+   only runs when triggered by a push to the exercise branch itself, or manually.
+
+**Known gotcha when testing the stub itself:** a commit with zero file changes (e.g.
+`git commit --allow-empty`) does not reliably trigger `on: push` — GitHub's `paths-ignore`
+evaluation appears to treat a diff-free commit as matching nothing. Use a real, trivial content
+change (e.g. add a comment) instead of an empty commit when you need to force a fresh run.
+
+**Known gotcha inside the reusable workflow:** inside a `workflow_call`-invoked workflow, the
+default `github.repository`/`github.ref` context reflects the CALLER (whichever branch triggered
+the stub), not `integration-test` itself. The harness checkout step in `cpt-reusable.yml` pins
+`repository:`/`ref:` explicitly for exactly this reason — don't remove those, or the checkout
+silently lands on the wrong branch (surfaces as `setup-java` reporting "no file matched
+[harness/cpt-test/pom.xml]", since the exercise branch has no `cpt-test/` at all).
+
+**Also required:** `run-exercise.sh` derives which exercise to test from
+`git branch --show-current` on `WORKTREE`, which returns empty under CI (`actions/checkout` leaves
+a detached HEAD). The reusable workflow passes `WORKTREE_BRANCH` as an env var to work around
+this — if you ever call `run-exercise.sh` from a new CI context, keep setting `WORKTREE_BRANCH`
+explicitly.
+
+### Cost
+
+Well within the private-repo free tier (2,000 min/month) at today's scale (8-12 exercises, tested
+one branch per push, not batched). Per-language-run: ~90-180s cold, ~40-70s with the `~/.m2`/
+`node_modules`/pip/NuGet caches warm. Dependency install (npm/pip/dotnet/mvn) dominates the cost,
+not the Docker image pull (~30-90s once per job) or actual test execution (5-12s). Revisit if the
+exercise count or push frequency grows a lot — see the git history of this file (pre-simplification
+version) for the original per-exercise-batch cost math if that's ever needed again.

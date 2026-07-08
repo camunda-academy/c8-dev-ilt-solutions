@@ -108,3 +108,16 @@ coverage HTML) lands under `cpt-test/results/<language>/`; the summary table abo
 
 If preflight finds a problem, it asks whether to continue (default: no) — set `YES=1` to skip that
 prompt (e.g. in CI), or `PREFLIGHT=0` to skip the check entirely.
+
+## Also runs automatically in CI
+
+Every push to an `exercise-NN` branch (or `main`) runs this same suite via GitHub Actions —
+filter the Actions tab by branch to see a given exercise's results, and download the
+`cpt-results-exercise-NN` artifact from a run for the full report/logs, same content as a local
+`results/` directory. Doc-only changes (`**.md`) don't trigger a run.
+
+The actual CI logic (`.github/workflows/cpt-reusable.yml`) lives only on this branch; every
+exercise branch just has a tiny stub (`.github/workflows/test.yml`) that calls it. See
+`ALL-EXERCISES-PLAN.md`'s "Adding a new exercise branch" section before creating a new exercise —
+forgetting to copy that stub is the most common way to end up with a branch that silently never
+runs any tests.

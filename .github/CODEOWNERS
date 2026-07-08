@@ -1,0 +1,4 @@
+# CPT test harness (this branch, integration-test) — Camunda Education team owns and maintains it.
+/cpt-test/                  @camunda-academy/education-core
+/.github/workflows/         @camunda-academy/education-core
+/.github/CODEOWNERS         @camunda-academy/education-core
