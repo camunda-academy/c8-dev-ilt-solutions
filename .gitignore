@@ -37,3 +37,7 @@ __pycache__/
 # Node
 node_modules/
 npm-debug.log*
+
+# .NET
+bin/
+obj/
