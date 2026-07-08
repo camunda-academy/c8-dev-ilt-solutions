@@ -1,0 +1,16 @@
+name: CPT tests
+
+# Identical on every exercise-NN branch — do not add branch-specific logic here. The actual test
+# steps live once, on integration-test's cpt-reusable.yml; this stub just calls it, always pointing
+# at whichever branch is checked out. See cpt-test/ALL-EXERCISES-PLAN.md.
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  test:
+    uses: camunda-academy/c8-dev-ilt-solutions/.github/workflows/cpt-reusable.yml@integration-test
+    with:
+      exercise-branch: ${{ github.ref_name }}
