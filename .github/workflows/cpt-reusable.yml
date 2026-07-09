@@ -1,7 +1,7 @@
 name: CPT tests (reusable)
 
 # Lives ONLY on integration-test. Called by the tiny per-branch stub workflow committed on each
-# exercise-NN branch (.github/workflows/test.yml) — see cpt-test/ALL-EXERCISES-PLAN.md.
+# exercise-NN branch (.github/workflows/test.yml) — see cpt-test/README.md.
 #
 # Checks out this branch (integration-test, for the harness) and the target exercise branch (for
 # worker code + assets) side by side, then runs the same run-exercise.sh a developer runs locally.
@@ -9,9 +9,17 @@ name: CPT tests (reusable)
 on:
   workflow_call:
     inputs:
-      exercise-branch:
-        description: "Exercise branch to test (e.g. exercise-08)"
+      checkout-ref:
+        description: "Git ref or commit SHA to check out for the exercise code under test"
         required: true
+        type: string
+      worktree-branch:
+        description: "Target exercise branch name (e.g. exercise-08) used to pick the CPT test class"
+        required: true
+        type: string
+      diff-base-sha:
+        description: "Base commit SHA to diff against when selecting changed languages"
+        required: false
         type: string
 
 jobs:
@@ -34,8 +42,104 @@ jobs:
       - name: Checkout exercise branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.exercise-branch }}
+          ref: ${{ inputs.checkout-ref }}
           path: worktree
+          fetch-depth: 0
+
+      - name: Detect changed languages
+        id: detect
+        working-directory: worktree
+        env:
+          BASE_SHA_INPUT: ${{ inputs.diff-base-sha }}
+        run: |
+          set -euo pipefail
+
+          base_sha="${BASE_SHA_INPUT:-}"
+          if [[ -z "${base_sha}" || "${base_sha}" == "0000000000000000000000000000000000000000" ]]; then
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              base_sha="$(git rev-parse HEAD^)"
+            else
+              base_sha=""
+            fi
+          fi
+
+          if [[ -z "${base_sha}" ]] || ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            echo "No usable base commit found; running all languages."
+            {
+              echo "run_all=true"
+              echo "run_python=true"
+              echo "run_js=true"
+              echo "run_csharp=true"
+              echo "run_java_spring=true"
+              echo "languages=all"
+              echo "reason=no diff base"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(git diff --name-only "${base_sha}...HEAD")
+
+          echo "Changed files since ${base_sha}:"
+          printf '  %s\n' "${changed_files[@]}"
+
+          run_all=false
+          run_python=false
+          run_js=false
+          run_csharp=false
+          run_java_spring=false
+
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              python/*) run_python=true ;;
+              js/*) run_js=true ;;
+              csharp/*) run_csharp=true ;;
+              java-spring/*) run_java_spring=true ;;
+              *) run_all=true ; break ;;
+            esac
+          done
+
+          if [[ "$run_all" == "true" ]]; then
+            run_python=true
+            run_js=true
+            run_csharp=true
+            run_java_spring=true
+            languages="all"
+            reason="shared change"
+          else
+            languages=()
+            [[ "$run_python" == "true" ]] && languages+=(python)
+            [[ "$run_js" == "true" ]] && languages+=(js)
+            [[ "$run_csharp" == "true" ]] && languages+=(csharp)
+            [[ "$run_java_spring" == "true" ]] && languages+=(java-spring)
+
+            if [[ ${#languages[@]} -eq 0 ]]; then
+              run_all=true
+              run_python=true
+              run_js=true
+              run_csharp=true
+              run_java_spring=true
+              languages="all"
+              reason="no language-specific changes detected"
+            else
+              languages="${languages[*]}"
+              reason="language-specific change"
+            fi
+          fi
+
+          {
+            echo "run_all=${run_all}"
+            echo "run_python=${run_python}"
+            echo "run_js=${run_js}"
+            echo "run_csharp=${run_csharp}"
+            echo "run_java_spring=${run_java_spring}"
+            echo "languages=${languages}"
+            echo "reason=${reason}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Selected test scope
+        run: |
+          echo "Reason: ${{ steps.detect.outputs.reason }}"
+          echo "Languages: ${{ steps.detect.outputs.languages }}"
 
       - uses: actions/setup-java@v5
         with:
@@ -45,48 +149,59 @@ jobs:
           cache-dependency-path: harness/cpt-test/pom.xml
 
       - uses: actions/setup-python@v6
+        if: steps.detect.outputs.run_python == 'true'
         with:
           python-version: "3.13"
 
       - uses: actions/setup-node@v6
+        if: steps.detect.outputs.run_js == 'true'
         with:
           node-version: "23"
 
       - uses: actions/setup-dotnet@v5
+        if: steps.detect.outputs.run_csharp == 'true'
         with:
           dotnet-version: "8.0.x"
 
-      # Per-language dependency caches — see cpt-test/ALL-EXERCISES-PLAN.md's cost notes; these are
-      # the dominant cost lever. Cache keys are best-effort (lockfiles may not exist on every
+      # Per-language dependency caches — see cpt-test/README.md's cost notes; these are the
+      # dominant cost lever. Cache keys are best-effort (lockfiles may not exist on every
       # branch/language); a miss just falls back to a fresh install, same as running locally.
       - uses: actions/cache@v6
+        if: steps.detect.outputs.run_python == 'true'
         with:
           path: worktree/python/.venv
-          key: ${{ runner.os }}-venv-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/python/requirements.txt') }}
+          key: ${{ runner.os }}-venv-${{ inputs.worktree-branch }}-${{ hashFiles('worktree/python/requirements.txt') }}
 
       - uses: actions/cache@v6
+        if: steps.detect.outputs.run_js == 'true'
         with:
           path: worktree/js/node_modules
-          key: ${{ runner.os }}-npm-${{ inputs.exercise-branch }}-${{ hashFiles('worktree/js/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ inputs.worktree-branch }}-${{ hashFiles('worktree/js/package-lock.json') }}
 
       - uses: actions/cache@v6
+        if: steps.detect.outputs.run_csharp == 'true'
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('worktree/csharp/**/*.csproj') }}
 
-      - name: Run CPT tests for ${{ inputs.exercise-branch }}
+      - name: Run CPT tests for ${{ inputs.worktree-branch }}
         env:
           WORKTREE: ${{ github.workspace }}/worktree
           # actions/checkout leaves a detached HEAD, so run-exercise.sh can't derive the exercise
           # number from `git branch --show-current` — pass it explicitly instead.
-          WORKTREE_BRANCH: ${{ inputs.exercise-branch }}
+          WORKTREE_BRANCH: ${{ inputs.worktree-branch }}
           YES: "1"
-        run: ./run-exercise.sh
+        run: |
+          if [[ "${{ steps.detect.outputs.languages }}" == "all" ]]; then
+            ./run-exercise.sh
+          else
+            ./run-exercise.sh ${{ steps.detect.outputs.languages }}
+          fi
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: cpt-results-${{ inputs.exercise-branch }}
+          name: cpt-results-${{ inputs.worktree-branch }}
           path: harness/cpt-test/results/
           retention-days: 14
