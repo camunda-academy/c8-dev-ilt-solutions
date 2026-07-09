@@ -1,16 +1,19 @@
 name: CPT tests
 
-# Identical on every exercise-NN branch — do not add branch-specific logic here. The actual test
-# steps live once, on integration-test's cpt-reusable.yml; this stub just calls it, always pointing
-# at whichever branch is checked out. See cpt-test/ALL-EXERCISES-PLAN.md.
+# Identical on main and every exercise-NN branch — do not add branch-specific logic here. The
+# actual test steps live once, on integration-test's cpt-reusable.yml. This stub only forwards PR
+# context to the reusable workflow. See cpt-test/README.md.
 
 on:
-  push:
+  pull_request:
     paths-ignore:
       - "**.md"
 
 jobs:
   test:
+    if: startsWith(github.base_ref, 'exercise-')
     uses: camunda-academy/c8-dev-ilt-solutions/.github/workflows/cpt-reusable.yml@integration-test
     with:
-      exercise-branch: ${{ github.ref_name }}
+      checkout-ref: ${{ github.event.pull_request.head.sha }}
+      worktree-branch: ${{ github.base_ref }}
+      diff-base-sha: ${{ github.event.pull_request.base.sha }}
