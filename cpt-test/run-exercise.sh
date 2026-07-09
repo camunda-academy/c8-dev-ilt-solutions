@@ -208,7 +208,7 @@ lang_start() {
     java)
       ( cd "${WORKTREE}/java" && \
         CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_GRPC_ADDRESS="${GRPC}" CAMUNDA_AUTH_STRATEGY=NONE \
-        mvn -q -B exec:java -Dexec.mainClass=io.camunda.training.CamundaApplication ) >"${logfile}" 2>&1 &
+        mvn -q -B -DskipTests compile exec:java -Dexec.mainClass=io.camunda.training.CamundaApplication ) >"${logfile}" 2>&1 &
       ;;
     java-spring)
       ( cd "${WORKTREE}/java-spring" && \
