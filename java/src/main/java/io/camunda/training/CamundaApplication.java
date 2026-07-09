@@ -17,51 +17,85 @@ import java.util.Properties;
 
 public class CamundaApplication {
 
-  private static final Logger logger = LoggerFactory.getLogger(CamundaApplication.class);
+        private static final Logger logger = LoggerFactory.getLogger(CamundaApplication.class);
 
-  public static void main(String[] args) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = CamundaApplication.class.getResourceAsStream("/application.properties")) {
-      props.load(in);
-    }
+        public static void main(String[] args) throws Exception {
+                Properties props = new Properties();
+                try (InputStream in = CamundaApplication.class.getResourceAsStream("/application.properties")) {
+                        if (in != null) {
+                                props.load(in);
+                        }
+                }
 
-    CreditCardService creditCardService = new CreditCardService();
-    CustomerService customerService = new CustomerService();
+                boolean hasCamundaEnv = hasCamundaEnvironment();
 
-    try (CamundaClient client = CamundaClient.newCloudClientBuilder()
-            .withClusterId(props.getProperty("camunda.client.cloud.cluster-id"))
-            .withClientId(props.getProperty("camunda.client.auth.client-id"))
-            .withClientSecret(props.getProperty("camunda.client.auth.client-secret"))
-            .withRegion(props.getProperty("camunda.client.cloud.region"))
-            .build();
+                String clusterId = hasCamundaEnv
+                                ? env("CAMUNDA_CLUSTER_ID")
+                                : props.getProperty("camunda.client.cloud.cluster-id");
+                String clientId = hasCamundaEnv
+                                ? firstNonBlank(env("CAMUNDA_CLIENT_ID"), env("ZEEBE_CLIENT_ID"))
+                                : props.getProperty("camunda.client.auth.client-id");
+                String clientSecret = hasCamundaEnv
+                                ? firstNonBlank(env("CAMUNDA_CLIENT_SECRET"), env("ZEEBE_CLIENT_SECRET"))
+                                : props.getProperty("camunda.client.auth.client-secret");
+                String region = hasCamundaEnv
+                                ? firstNonBlank(env("CAMUNDA_CLUSTER_REGION"), env("ZEEBE_CLIENT_REGION"))
+                                : props.getProperty("camunda.client.cloud.region");
 
-         JobWorker creditDeductionWorker = client.newWorker()
-                 .jobType("credit-deduction")
-                 .handler(new CreditDeductionWorker(customerService))
-                 .open();
+                CreditCardService creditCardService = new CreditCardService();
+                CustomerService customerService = new CustomerService();
 
-         JobWorker creditCardWorker = client.newWorker()
-                 .jobType("credit-card-charging")
-                 .handler(new CreditCardChargingWorker(creditCardService))
-                 .open();
+                try (CamundaClient client = CamundaClient.newCloudClientBuilder()
+                                .withClusterId(clusterId)
+                                .withClientId(clientId)
+                                .withClientSecret(clientSecret)
+                                .withRegion(region)
+                                .build();
 
-         JobWorker paymentInvocationWorker = client.newWorker()
-                 .jobType("payment-invocation")
-                 .handler(new PaymentInvocationWorker(client))
-                 .open();
+                                JobWorker creditDeductionWorker = client.newWorker()
+                                                .jobType("credit-deduction")
+                                                .handler(new CreditDeductionWorker(customerService))
+                                                .open();
 
-         JobWorker paymentCompletionWorker = client.newWorker()
-                 .jobType("payment-completion")
-                 .handler(new PaymentCompletionWorker(client))
-                 .open();
+                                JobWorker creditCardWorker = client.newWorker()
+                                                .jobType("credit-card-charging")
+                                                .handler(new CreditCardChargingWorker(creditCardService))
+                                                .open();
 
-         JobWorker paymentFailureWorker = client.newWorker()
-                 .jobType("payment-failure")
-                 .handler(new PaymentFailureWorker(client))
-                 .open()) {
-      logger.info("Workers started, waiting for jobs...");
+                                JobWorker paymentInvocationWorker = client.newWorker()
+                                                .jobType("payment-invocation")
+                                                .handler(new PaymentInvocationWorker(client))
+                                                .open();
 
-      Thread.currentThread().join();
-    }
-  }
+                                JobWorker paymentCompletionWorker = client.newWorker()
+                                                .jobType("payment-completion")
+                                                .handler(new PaymentCompletionWorker(client))
+                                                .open();
+
+                                JobWorker paymentFailureWorker = client.newWorker()
+                                                .jobType("payment-failure")
+                                                .handler(new PaymentFailureWorker(client))
+                                                .open()) {
+                        logger.info("Workers started, waiting for jobs...");
+
+                        Thread.currentThread().join();
+                }
+        }
+
+        private static String env(String name) {
+                return System.getenv(name);
+        }
+
+        private static boolean hasCamundaEnvironment() {
+                return System.getenv().keySet().stream().anyMatch(key -> key.startsWith("CAMUNDA_"));
+        }
+
+        private static String firstNonBlank(String... values) {
+                for (String value : values) {
+                        if (value != null && !value.isBlank()) {
+                                return value;
+                        }
+                }
+                return null;
+        }
 }
