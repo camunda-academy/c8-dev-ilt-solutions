@@ -14,7 +14,7 @@ namespace Camunda.Training.CSharp.Workers
         {
             Console.WriteLine($"Handling credit-deduction job: {job.JobKey}");
 
-            // Read the process variables into a typed DTO.
+            // Read process variables into a typed DTO.
             var input = job.GetVariables<DeductionInput>();
             Console.WriteLine($"Variables: {input}");
 
