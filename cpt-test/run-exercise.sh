@@ -16,7 +16,7 @@
 #   ./run-exercise.sh python js       # run only the named languages (still skips if unavailable)
 #   WORKTREE=../tmp ./run-exercise.sh # worker code + assets/ live in a separate checkout (e.g. a
 #                                      # `git worktree` of an exercise-NN branch, when this harness
-#                                      # lives on its own branch — see ALL-EXERCISES-PLAN.md).
+#                                      # lives on its own branch — see cpt-test/README.md).
 #                                      # Defaults to this script's own repo (cpt-test's sibling dir).
 #                                      # The exercise under test is read from WORKTREE's checked-out
 #                                      # branch name (must match exercise-NN); if that branch has no
