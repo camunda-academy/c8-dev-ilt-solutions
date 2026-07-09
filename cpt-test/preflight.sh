@@ -131,10 +131,6 @@ check_java() {
   printf '%sjava%s\n' "${BOLD}" "${RESET}"
   if [[ ! -f "${WORKTREE}/java/pom.xml" ]]; then printf '  %s—%s no implementation in java/\n' "${YELLOW}" "${RESET}"; return; fi
   if ! command -v mvn >/dev/null 2>&1; then bad "mvn not found" "install Maven, e.g. 'brew install maven'"; return; fi
-  if grep -q '^camunda.client.mode=saas' "${WORKTREE}/java/src/main/resources/application.properties" 2>/dev/null; then
-    printf '  %s—%s plain Java worker is SaaS-only on this branch\n' "${YELLOW}" "${RESET}"
-    return
-  fi
   ok "mvn (java/pom.xml present)"
 }
 

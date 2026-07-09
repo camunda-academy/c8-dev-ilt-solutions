@@ -178,10 +178,6 @@ lang_available() {
     java)
       [[ -f "${WORKTREE}/java/pom.xml" ]] || { SKIP_REASON="no java/pom.xml"; return 1; }
       command -v mvn >/dev/null || { SKIP_REASON="mvn not found"; return 1; }
-      if grep -q '^camunda.client.mode=saas' "${WORKTREE}/java/src/main/resources/application.properties" 2>/dev/null; then
-        SKIP_REASON="plain java worker is SaaS-only on this branch"
-        return 1
-      fi
       ;;
     java-spring)
       [[ -f "${WORKTREE}/java-spring/pom.xml" ]] || { SKIP_REASON="no java-spring/pom.xml"; return 1; }
@@ -211,6 +207,7 @@ lang_start() {
       ;;
     java)
       ( cd "${WORKTREE}/java" && \
+        CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_GRPC_ADDRESS="${GRPC}" CAMUNDA_AUTH_STRATEGY=NONE \
         mvn -q -B exec:java -Dexec.mainClass=io.camunda.training.CamundaApplication ) >"${logfile}" 2>&1 &
       ;;
     java-spring)
