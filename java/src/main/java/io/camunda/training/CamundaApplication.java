@@ -37,12 +37,16 @@ public class CamundaApplication {
         ? firstNonBlank(env("CAMUNDA_CLUSTER_REGION"), env("ZEEBE_CLIENT_REGION"))
         : props.getProperty("camunda.client.cloud.region");
 
-    try (CamundaClient client = CamundaClient.newCloudClientBuilder()
+    CamundaClient configuredClient = hasCamundaEnv
+      ? CamundaClient.newClientBuilder().build()
+      : CamundaClient.newCloudClientBuilder()
         .withClusterId(clusterId)
         .withClientId(clientId)
         .withClientSecret(clientSecret)
         .withRegion(region)
-            .build();
+        .build();
+
+    try (CamundaClient client = configuredClient;
 
          JobWorker creditDeductionWorker = client.newWorker()
                  .jobType("credit-deduction")
