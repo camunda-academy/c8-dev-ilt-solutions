@@ -34,7 +34,7 @@ ok()   { printf '  %s✓%s %s\n' "${GREEN}" "${RESET}" "$1"; }
 # bad <message> <fix>  — records a worker-level finding (use CORE_MISSING=1 for core tools).
 bad()  { printf '  %s✗%s %s\n      %s↳ fix:%s %s\n' "${RED}" "${RESET}" "$1" "${YELLOW}" "${RESET}" "$2"; WORKER_MISSING=1; }
 
-ALL_LANGS=(python csharp js java-spring)
+ALL_LANGS=(python csharp js java java-spring)
 if [[ $# -gt 0 ]]; then LANGS=("$@"); else LANGS=("${ALL_LANGS[@]}"); fi
 
 printf '%sPreflight — CPT test dependencies%s\n\n' "${BOLD}" "${RESET}"
@@ -126,6 +126,18 @@ check_js() {
   fi
 }
 
+
+check_java() {
+  printf '%sjava%s\n' "${BOLD}" "${RESET}"
+  if [[ ! -f "${WORKTREE}/java/pom.xml" ]]; then printf '  %s—%s no implementation in java/\n' "${YELLOW}" "${RESET}"; return; fi
+  if ! command -v mvn >/dev/null 2>&1; then bad "mvn not found" "install Maven, e.g. 'brew install maven'"; return; fi
+  if grep -q '^camunda.client.mode=saas' "${WORKTREE}/java/src/main/resources/application.properties" 2>/dev/null; then
+    printf '  %s—%s plain Java worker is SaaS-only on this branch\n' "${YELLOW}" "${RESET}"
+    return
+  fi
+  ok "mvn (java/pom.xml present)"
+}
+
 check_java_spring() {
   printf '%sjava-spring%s\n' "${BOLD}" "${RESET}"
   if [[ ! -f "${WORKTREE}/java-spring/pom.xml" ]]; then printf '  %s—%s no implementation in java-spring/\n' "${YELLOW}" "${RESET}"; return; fi
@@ -138,6 +150,7 @@ for lang in "${LANGS[@]}"; do
     python)      check_python ;;
     csharp)      check_csharp ;;
     js)          check_js ;;
+    java)        check_java ;;
     java-spring) check_java_spring ;;
     *)      printf '%s%s%s\n  %s—%s unknown language\n' "${BOLD}" "${lang}" "${RESET}" "${YELLOW}" "${RESET}" ;;
   esac

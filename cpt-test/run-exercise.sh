@@ -23,9 +23,8 @@
 #                                      # ExerciseNNTest class yet, the run is skipped with a clear
 #                                      # message rather than failing.
 #
-# Languages with no implementation on this branch (java, java-spring) or whose toolchain/deps are
-# not installed are SKIPPED (reported, not failed). One worker runs at a time so they don't compete
-# for jobs.
+# Languages with no implementation on this branch or whose toolchain/deps are not installed are
+# SKIPPED (reported, not failed). One worker runs at a time so they don't compete for jobs.
 #
 set -uo pipefail
 
@@ -89,7 +88,7 @@ PYTHON_OVERRIDE="${PYTHON:-}"
 resolve_python
 
 # ---- which languages ---------------------------------------------------------
-ALL_LANGS=(python csharp js java-spring)
+ALL_LANGS=(python csharp js java java-spring)
 if [[ $# -gt 0 ]]; then REQUESTED=("$@"); else REQUESTED=("${ALL_LANGS[@]}"); fi
 
 # ---- state for cleanup -------------------------------------------------------
@@ -176,6 +175,14 @@ lang_available() {
       command -v npx >/dev/null || { SKIP_REASON="npx not found"; return 1; }
       [[ -d "${WORKTREE}/js/node_modules" ]] || { SKIP_REASON="js/node_modules missing (run 'npm install' in js/)"; return 1; }
       ;;
+    java)
+      [[ -f "${WORKTREE}/java/pom.xml" ]] || { SKIP_REASON="no java/pom.xml"; return 1; }
+      command -v mvn >/dev/null || { SKIP_REASON="mvn not found"; return 1; }
+      if grep -q '^camunda.client.mode=saas' "${WORKTREE}/java/src/main/resources/application.properties" 2>/dev/null; then
+        SKIP_REASON="plain java worker is SaaS-only on this branch"
+        return 1
+      fi
+      ;;
     java-spring)
       [[ -f "${WORKTREE}/java-spring/pom.xml" ]] || { SKIP_REASON="no java-spring/pom.xml"; return 1; }
       command -v mvn >/dev/null || { SKIP_REASON="mvn not found"; return 1; }
@@ -201,6 +208,10 @@ lang_start() {
       ( cd "${WORKTREE}/js" && \
         CAMUNDA_REST_ADDRESS="${REST}" CAMUNDA_AUTH_STRATEGY=NONE \
         npx ts-node --transpile-only "src/workers/${JS_WORKER_FILE}" ) >"${logfile}" 2>&1 &
+      ;;
+    java)
+      ( cd "${WORKTREE}/java" && \
+        mvn -q -B exec:java -Dexec.mainClass=io.camunda.training.CamundaApplication ) >"${logfile}" 2>&1 &
       ;;
     java-spring)
       ( cd "${WORKTREE}/java-spring" && \
