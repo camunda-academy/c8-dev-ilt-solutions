@@ -6,7 +6,7 @@ namespace Camunda.Training.CSharp.Workers
     // Input/output DTOs. Property names map to the BPMN process variables
     // (System.Text.Json matches them case-insensitively, so CustomerId <-> customerId).
     public record DeductionInput(string CustomerId, double OrderTotal);
-    public record DeductionOutput(double OpenAmount1);
+    public record DeductionOutput(double OpenAmount);
 
     public class CreditDeductionWorker(CamundaClient client) : Worker("credit-deduction", client)
     {
@@ -14,7 +14,7 @@ namespace Camunda.Training.CSharp.Workers
         {
             Console.WriteLine($"Handling credit-deduction job: {job.JobKey}");
 
-            // Read the process variables into a typed DTO.
+            // Read process variables into a typed DTO.
             var input = job.GetVariables<DeductionInput>();
             Console.WriteLine($"Variables: {input}");
 
