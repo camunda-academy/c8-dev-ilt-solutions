@@ -19,23 +19,23 @@ public class CamundaApplication {
   public static void main(String[] args) throws Exception {
     Properties props = new Properties();
     try (InputStream in = CamundaApplication.class.getResourceAsStream("/application.properties")) {
-        if (in != null) {
-    props.load(in);
-        }
+      if (in != null) {
+        props.load(in);
+      }
     }
 
-      boolean hasCamundaEnv = hasCamundaEnvironment();
+    boolean hasCamundaEnv = hasCamundaEnvironment();
 
-      String clusterId = hasCamundaEnv
+    String clusterId = hasCamundaEnv
         ? env("CAMUNDA_CLUSTER_ID")
         : props.getProperty("camunda.client.cloud.cluster-id");
-      String clientId = hasCamundaEnv
+    String clientId = hasCamundaEnv
         ? firstNonBlank(env("CAMUNDA_CLIENT_ID"), env("ZEEBE_CLIENT_ID"))
         : props.getProperty("camunda.client.auth.client-id");
-      String clientSecret = hasCamundaEnv
+    String clientSecret = hasCamundaEnv
         ? firstNonBlank(env("CAMUNDA_CLIENT_SECRET"), env("ZEEBE_CLIENT_SECRET"))
         : props.getProperty("camunda.client.auth.client-secret");
-      String region = hasCamundaEnv
+    String region = hasCamundaEnv
         ? firstNonBlank(env("CAMUNDA_CLUSTER_REGION"), env("ZEEBE_CLIENT_REGION"))
         : props.getProperty("camunda.client.cloud.region");
 
@@ -43,21 +43,21 @@ public class CamundaApplication {
     CustomerService customerService = new CustomerService();
 
     try (CamundaClient client = CamundaClient.newCloudClientBuilder()
-          .withClusterId(clusterId)
-          .withClientId(clientId)
-          .withClientSecret(clientSecret)
-          .withRegion(region)
-            .build();
+        .withClusterId(clusterId)
+        .withClientId(clientId)
+        .withClientSecret(clientSecret)
+        .withRegion(region)
+        .build();
 
-         JobWorker creditDeductionWorker = client.newWorker()
-                 .jobType("credit-deduction")
-                 .handler(new CreditDeductionWorker(customerService))
-                 .open();
+        JobWorker creditDeductionWorker = client.newWorker()
+            .jobType("credit-deduction")
+            .handler(new CreditDeductionWorker(customerService))
+            .open();
 
-         JobWorker creditCardWorker = client.newWorker()
-                 .jobType("credit-card-charging")
-                 .handler(new CreditCardChargingWorker(creditCardService))
-                 .open()) {
+        JobWorker creditCardWorker = client.newWorker()
+            .jobType("credit-card-charging")
+            .handler(new CreditCardChargingWorker(creditCardService))
+            .open()) {
       logger.info("Workers started, waiting for jobs...");
 
       Thread.currentThread().join();
