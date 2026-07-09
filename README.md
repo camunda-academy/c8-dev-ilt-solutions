@@ -63,6 +63,14 @@ git checkout exercise-NN
 
 ---
 
+## Trainer Operations
+
+For the trainer runbook (exercise update flow, PR flow, and CPT checks), see:
+
+- [docs/trainer-guide.md](docs/trainer-guide.md)
+
+---
+
 ## Prerequisites
 
 Before running any of the solutions, make sure you have:
