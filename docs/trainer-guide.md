@@ -17,7 +17,7 @@ git checkout exercise-09
 2. Create a feature branch:
 
 ```bash
-git checkout -b users/<your-name>/exercise-09-<topic>
+git checkout -b feature/exercise-09
 ```
 
 3. Make your code changes and commit:
@@ -30,12 +30,12 @@ git commit -m "Describe your change"
 4. Push the feature branch:
 
 ```bash
-git push -u origin users/<your-name>/exercise-09-<topic>
+git push -u origin feature/exercise-09
 ```
 
 5. Open a pull request:
 - Base branch: `exercise-09`
-- Compare branch: `users/<your-name>/exercise-09-<topic>`
+- Compare branch: `feature/exercise-09`
 
 6. Wait for the `CPT tests` check and review results.
 
@@ -49,6 +49,8 @@ git push -u origin users/<your-name>/exercise-09-<topic>
 ## Notes
 
 - Protected exercise branches should not be pushed directly.
+- Use feature branch names that do not start with `exercise-` (for example `feature/...`) so
+  branch protection on `exercise-*` does not block the push.
 - CPT is triggered by pull requests to `exercise-*` branches.
 - Language selection is change-aware in CI:
   - Changes limited to one language folder (for example `js/`) run only that language.
