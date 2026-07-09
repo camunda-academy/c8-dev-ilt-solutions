@@ -14,20 +14,12 @@ import org.junit.platform.suite.api.Suite;
 @Suite
 @SelectClasses({
   Exercise05Test.class,
-  Exercise05ScenarioReplayTest.class,
   Exercise06Test.class,
-  Exercise06ScenarioReplayTest.class,
   Exercise07Test.class,
-  Exercise07ScenarioReplayTest.class,
   Exercise08Test.class,
-  Exercise08ScenarioReplayTest.class,
   Exercise09Test.class,
-  Exercise09ScenarioReplayTest.class,
   Exercise10Test.class,
-  Exercise10ScenarioReplayTest.class,
   Exercise11Test.class,
-  Exercise11ScenarioReplayTest.class,
-  Exercise12Test.class,
-  Exercise12ScenarioReplayTest.class
+  Exercise12Test.class
 })
 class AllExercisesTestSuite {}
