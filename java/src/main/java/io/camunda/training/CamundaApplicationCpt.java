@@ -20,7 +20,7 @@ public class CamundaApplicationCpt {
   /**
    * CPT-only launcher.
    *
-   * <p>This class exists to keep trainee-facing code in { CamundaApplication} simple,
+   * <p>This class exists to keep trainee-facing code in {@link CamundaApplication} simple,
    * while giving the CPT harness a dedicated entrypoint for local test runtime execution.
    */
 
