@@ -24,45 +24,45 @@ public class CamundaApplicationCpt {
    * while giving the CPT harness a dedicated entrypoint for local test runtime execution.
    */
 
-        private static final Logger logger = LoggerFactory.getLogger(CamundaApplicationCpt.class);
+  private static final Logger logger = LoggerFactory.getLogger(CamundaApplicationCpt.class);
 
-        public static void main(String[] args) throws Exception {
-CreditCardService creditCardService = new CreditCardService();
-                CustomerService customerService = new CustomerService();
+  public static void main(String[] args) throws Exception {
+    CreditCardService creditCardService = new CreditCardService();
+    CustomerService customerService = new CustomerService();
 
-                try (CamundaClient client = createClient();
+    try (CamundaClient client = createClient();
 
-                                JobWorker creditDeductionWorker = client.newWorker()
-                                                .jobType("credit-deduction")
-                                                .handler(new CreditDeductionWorker(customerService))
-                                                .open();
+         JobWorker creditDeductionWorker = client.newWorker()
+                 .jobType("credit-deduction")
+                 .handler(new CreditDeductionWorker(customerService))
+                 .open();
 
-                                JobWorker creditCardWorker = client.newWorker()
-                                                .jobType("credit-card-charging")
-                                                .handler(new CreditCardChargingWorker(creditCardService))
-                                                .open();
+         JobWorker creditCardWorker = client.newWorker()
+                 .jobType("credit-card-charging")
+                 .handler(new CreditCardChargingWorker(creditCardService))
+                 .open();
 
-                                JobWorker paymentInvocationWorker = client.newWorker()
-                                                .jobType("payment-invocation")
-                                                .handler(new PaymentInvocationWorker(client))
-                                                .open();
+         JobWorker paymentInvocationWorker = client.newWorker()
+                 .jobType("payment-invocation")
+                 .handler(new PaymentInvocationWorker(client))
+                 .open();
 
-                                JobWorker paymentCompletionWorker = client.newWorker()
-                                                .jobType("payment-completion")
-                                                .handler(new PaymentCompletionWorker(client))
-                                                .open();
+         JobWorker paymentCompletionWorker = client.newWorker()
+                 .jobType("payment-completion")
+                 .handler(new PaymentCompletionWorker(client))
+                 .open();
 
-                                JobWorker paymentFailureWorker = client.newWorker()
-                                                .jobType("payment-failure")
-                                                .handler(new PaymentFailureWorker(client))
-                                                .open()) {
-                        logger.info("Workers started, waiting for jobs...");
+         JobWorker paymentFailureWorker = client.newWorker()
+                 .jobType("payment-failure")
+                 .handler(new PaymentFailureWorker(client))
+                 .open()) {
+      logger.info("Workers started, waiting for jobs...");
 
-                        Thread.currentThread().join();
-                }
-        }
+      Thread.currentThread().join();
+    }
+  }
 
-        private static CamundaClient createClient() throws Exception {
+  private static CamundaClient createClient() throws Exception {
     if (hasLocalCamundaEnvironment()) {
       return CamundaClient.newClientBuilder().build();
     }
