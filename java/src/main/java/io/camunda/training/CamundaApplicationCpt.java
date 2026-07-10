@@ -26,37 +26,10 @@ public class CamundaApplicationCpt {
   private static final Logger logger = LoggerFactory.getLogger(CamundaApplicationCpt.class);
 
   public static void main(String[] args) throws Exception {
-    Properties props = new Properties();
-    try (InputStream in = CamundaApplicationCpt.class.getResourceAsStream("/application.properties")) {
-      if (in != null) {
-        props.load(in);
-      }
-    }
-
-    boolean hasCamundaEnv = hasCamundaEnvironment();
-
-    String clusterId = hasCamundaEnv
-            ? env("CAMUNDA_CLUSTER_ID")
-            : props.getProperty("camunda.client.cloud.cluster-id");
-    String clientId = hasCamundaEnv
-            ? firstNonBlank(env("CAMUNDA_CLIENT_ID"), env("ZEEBE_CLIENT_ID"))
-            : props.getProperty("camunda.client.auth.client-id");
-    String clientSecret = hasCamundaEnv
-            ? firstNonBlank(env("CAMUNDA_CLIENT_SECRET"), env("ZEEBE_CLIENT_SECRET"))
-            : props.getProperty("camunda.client.auth.client-secret");
-    String region = hasCamundaEnv
-            ? firstNonBlank(env("CAMUNDA_CLUSTER_REGION"), env("ZEEBE_CLIENT_REGION"))
-            : props.getProperty("camunda.client.cloud.region");
-
-    CreditCardService creditCardService = new CreditCardService();
+CreditCardService creditCardService = new CreditCardService();
     CustomerService customerService = new CustomerService();
 
-    try (CamundaClient client = CamundaClient.newCloudClientBuilder()
-            .withClusterId(clusterId)
-            .withClientId(clientId)
-            .withClientSecret(clientSecret)
-            .withRegion(region)
-            .build();
+    try (CamundaClient client = createClient();
 
          JobWorker creditDeductionWorker = client.newWorker()
                  .jobType("credit-deduction")
@@ -83,20 +56,97 @@ public class CamundaApplicationCpt {
     }
   }
 
-        private static String env(String name) {
-                return System.getenv(name);
-        }
+        private static CamundaClient createClient() throws Exception {
+    if (hasLocalCamundaEnvironment()) {
+      return CamundaClient.newClientBuilder().build();
+    }
 
-        private static boolean hasCamundaEnvironment() {
-                return System.getenv().keySet().stream().anyMatch(key -> key.startsWith("CAMUNDA_"));
-        }
+    Properties props = loadProperties();
+    String clusterId = requireNonBlank("cluster id", resolveClusterId(props));
+    String clientId = requireNonBlank("client id", resolveClientId(props));
+    String clientSecret = requireNonBlank("client secret", resolveClientSecret(props));
+    String region = requireNonBlank("cluster region", resolveRegion(props));
 
-        private static String firstNonBlank(String... values) {
-                for (String value : values) {
-                        if (value != null && !value.isBlank()) {
-                                return value;
-                        }
-                }
-                return null;
-        }
+    return CamundaClient.newCloudClientBuilder()
+        .withClusterId(clusterId)
+        .withClientId(clientId)
+        .withClientSecret(clientSecret)
+        .withRegion(region)
+        .build();
+  }
+
+  private static Properties loadProperties() throws Exception {
+    Properties props = new Properties();
+    try (InputStream in = CamundaApplicationCpt.class.getResourceAsStream("/application.properties")) {
+      if (in != null) {
+        props.load(in);
+      }
+    }
+    return props;
+  }
+
+  private static String env(String name) {
+    return System.getenv(name);
+  }
+
+  private static boolean hasLocalCamundaEnvironment() {
+    String restAddress = firstNonBlank(env("CAMUNDA_REST_ADDRESS"), env("ZEEBE_REST_ADDRESS"));
+    String authStrategy = env("CAMUNDA_AUTH_STRATEGY");
+    String clientMode = env("CAMUNDA_CLIENT_MODE");
+
+    return isNonBlank(restAddress)
+        && ("NONE".equalsIgnoreCase(authStrategy) || "self-managed".equalsIgnoreCase(clientMode));
+  }
+
+  private static String resolveClusterId(Properties props) {
+    return firstNonBlank(
+        env("CAMUNDA_CLUSTER_ID"),
+        env("CAMUNDA_CLIENT_CLOUD_CLUSTERID"),
+        props.getProperty("camunda.client.cloud.cluster-id"));
+  }
+
+  private static String resolveClientId(Properties props) {
+    return firstNonBlank(
+        env("CAMUNDA_CLIENT_ID"),
+        env("CAMUNDA_CLIENT_AUTH_CLIENTID"),
+        env("ZEEBE_CLIENT_ID"),
+        props.getProperty("camunda.client.auth.client-id"));
+  }
+
+  private static String resolveClientSecret(Properties props) {
+    return firstNonBlank(
+        env("CAMUNDA_CLIENT_SECRET"),
+        env("CAMUNDA_CLIENT_AUTH_CLIENTSECRET"),
+        env("ZEEBE_CLIENT_SECRET"),
+        props.getProperty("camunda.client.auth.client-secret"));
+  }
+
+  private static String resolveRegion(Properties props) {
+    return firstNonBlank(
+        env("CAMUNDA_CLUSTER_REGION"),
+        env("CAMUNDA_CLIENT_CLOUD_REGION"),
+        props.getProperty("camunda.client.cloud.region"));
+  }
+
+  private static String requireNonBlank(String label, String value) {
+    if (isNonBlank(value)) {
+      return value;
+    }
+    throw new IllegalStateException(
+        "Missing Camunda " + label
+            + " (env CAMUNDA_* preferred, ZEEBE_* fallback, then application.properties)");
+  }
+
+  private static String firstNonBlank(String... values) {
+    for (String value : values) {
+      if (isNonBlank(value)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  private static boolean isNonBlank(String value) {
+    return value != null && !value.isBlank();
+  }
 }
