@@ -27,7 +27,7 @@ public class CamundaApplicationCpt {
   private static final Logger logger = LoggerFactory.getLogger(CamundaApplicationCpt.class);
 
   public static void main(String[] args) throws Exception {
-CreditCardService creditCardService = new CreditCardService();
+    CreditCardService creditCardService = new CreditCardService();
     CustomerService customerService = new CustomerService();
 
     try (CamundaClient client = createClient();
