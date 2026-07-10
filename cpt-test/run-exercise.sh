@@ -297,6 +297,8 @@ for lang in "${REQUESTED[@]}"; do
   fi
 
   log "[${lang}] running tests"
+  # Avoid stale counts in repeated local/CI runs by clearing previous Surefire and coverage output.
+  rm -rf "${CPT_DIR}/target/surefire-reports" "${CPT_DIR}/target/coverage-report"
   ( cd "${CPT_DIR}" && mvn -B test "-Dtest=${TEST_CLASSES}" \
       "-Dlang=${lang}" "-DworktreeDir=${WORKTREE}" ) \
     >"${LANG_RESULTS}/maven.log" 2>&1
