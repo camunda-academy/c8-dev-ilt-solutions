@@ -108,6 +108,21 @@ Useful variants:
 - Test another exercise: point the worktree at a different `exercise-NN` branch
 - Report only missing dependencies: `NO_AUTOFIX=1 WORKTREE=../tmp ./preflight.sh`
 
+<details>
+<summary>Advanced: running a single test class directly</summary>
+
+`run-exercise.sh` is the normal entry point and manages the runtime and worker lifecycle for you.
+Occasionally it's more convenient to drive one test class by hand instead, e.g. when debugging a
+single exercise/language pair. In that case:
+
+1. Start the runtime yourself: `./start-runtime.sh` (foreground; Ctrl+C to stop).
+2. Start ONE worker implementation manually, pointed at that runtime.
+3. Run just that class: `mvn test -Dtest=Exercise05Test -Dlang=python`.
+
+See the Javadoc on each `ExerciseNNTest` class for the exact steps.
+
+</details>
+
 ## Where to look after a run
 
 - Summary report: `cpt-test/results/report.md`
