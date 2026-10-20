@@ -7,7 +7,7 @@
     "start": "ts-node src/workers/exercise_5.ts"
   },
   "dependencies": {
-    "@camunda8/orchestration-cluster-api": "^9.1.2"
+    "@camunda8/orchestration-cluster-api": "^10.0.0"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",
