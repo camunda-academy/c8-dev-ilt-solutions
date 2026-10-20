@@ -21,7 +21,7 @@
 #
 set -euo pipefail
 
-IMAGE="camunda/camunda:8.10.0-alpha3-rc2"
+IMAGE="camunda/camunda:8.10.8"
 NAME="cpt-camunda"
 
 if [[ "${1:-start}" == "stop" ]]; then

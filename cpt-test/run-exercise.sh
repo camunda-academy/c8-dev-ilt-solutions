@@ -65,7 +65,7 @@ fi
 JS_WORKER_FILE="exercise_$((10#${EXERCISE_NUM})).ts"
 
 # ---- runtime config ----------------------------------------------------------
-IMAGE="camunda/camunda:8.10.0-alpha3-rc2"
+IMAGE="camunda/camunda:8.10.8"
 CONTAINER="cpt-camunda"
 REST="http://localhost:8080"
 GRPC="http://localhost:26500"

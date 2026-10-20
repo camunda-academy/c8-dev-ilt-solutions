@@ -149,6 +149,6 @@ For a new `exercise-NN` branch:
 
 ## Current version constraint
 
-The scenario replay API used by these tests currently depends on CPT `8.10.0-alpha3-rc2`, and the
+The scenario replay API used by these tests currently depends on CPT `8.10.8`, and the
 Docker runtime image is intentionally pinned to the same version in the scripts. If that version is
 changed, client and runtime must stay aligned.

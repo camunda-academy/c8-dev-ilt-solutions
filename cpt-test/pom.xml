@@ -21,9 +21,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>21</maven.compiler.release>
 
-    <!-- 8.10.0-alpha3-rc2: needed for the CPT JSON test-case replay API (TestCasesReader /
-         CamundaTestCaseRunner), not yet in a stable release. Bump here only. -->
-    <camunda.version>8.10.0-alpha3-rc2</camunda.version>
+    <!-- 8.10.8: stable release containing the CPT JSON test-case replay API
+         (TestCasesReader / CamundaTestCaseRunner). Bump here only. -->
+    <camunda.version>8.10.8</camunda.version>
 
     <junit.version>5.11.4</junit.version>
     <assertj.version>3.27.3</assertj.version>
