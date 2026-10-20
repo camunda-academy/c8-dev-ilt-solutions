@@ -15,6 +15,7 @@ const client = createCamundaClient({
             CAMUNDA_CLIENT_SECRET: process.env.CAMUNDA_CLIENT_SECRET,
             CAMUNDA_OAUTH_URL: process.env.CAMUNDA_OAUTH_URL,
             CAMUNDA_TOKEN_AUDIENCE: process.env.CAMUNDA_TOKEN_AUDIENCE ?? "zeebe.camunda.io",
+            CAMUNDA_SDK_LOG_LEVEL: "error",
         }
         : {
             CAMUNDA_REST_ADDRESS: config.CAMUNDA_REST_ADDRESS,
@@ -23,6 +24,7 @@ const client = createCamundaClient({
             CAMUNDA_CLIENT_SECRET: config.CAMUNDA_CLIENT_SECRET,
             CAMUNDA_OAUTH_URL: config.CAMUNDA_OAUTH_URL,
             CAMUNDA_TOKEN_AUDIENCE: "zeebe.camunda.io",
+            CAMUNDA_SDK_LOG_LEVEL: "error",
         }
 });
 
