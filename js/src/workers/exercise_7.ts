@@ -50,22 +50,6 @@ const client = createCamundaClient({
         jobHandler: creditCardCharging
     })
 
-    client.createJobWorker({
-        jobType: 'payment-invocation',
-        jobTimeoutMs: 20000,
-        maxParallelJobs: 1,
-        workerName: 'payment-invoke-worker',
-        jobHandler: startPaymentProcess
-    })
-
-    client.createJobWorker({
-        jobType: 'payment-completion',
-        jobTimeoutMs: 20000,
-        maxParallelJobs: 1,
-        workerName: 'payment-completion-worker',
-        jobHandler: respondToOrderProcess
-    })
-
 })()
 
 async function creditDeduction(job) {
@@ -93,27 +77,6 @@ async function creditCardCharging(job) {
           cvc = job.variables.cvc;
 
     console.log("Charged card " + cardNumber + " that expires on " + expiryDate + " and has cvc " + cvc + " with amount of " + amount + " EUR");
-
-    await job.complete();
-}
-
-async function startPaymentProcess(job) {
-
-    await client.publishMessage({ name: 'paymentRequestMessage',
-	                                variables: job.variables });
-
-    console.log("Starting payment process...");
-
-    await job.complete();
-}
-
-async function respondToOrderProcess(job) {
-
-    await client.publishMessage({ correlationKey: job.variables.orderId,
-                                  name: 'paymentCompletedMessage',
-	                                variables: job.variables });
-
-    console.log("Responding to order process...");
 
     await job.complete();
 }
