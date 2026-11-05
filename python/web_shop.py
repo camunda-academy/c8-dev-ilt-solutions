@@ -5,9 +5,6 @@ import configparser
 from pathlib import Path
 from camunda_orchestration_sdk import CamundaAsyncClient, WorkerConfig
 
-from handler.payment_completion_handler import payment_completion_handler
-from handler.payment_failure_handler import payment_failure_handler
-from handler.payment_invocation_handler import payment_invocation_handler
 from handler.example_handler import example_job_handler
 from handler.credit_deduction_handler import credit_deduction_handler
 from handler.credit_card_charging_handler import credit_card_charging_handler
@@ -63,23 +60,6 @@ async def main():
                           job_timeout_milliseconds=10_000,
                           fetch_variables=["cardNumber", "cvc", "expiryDate", "openAmount"]),
             credit_card_charging_handler
-        )
-        camunda_client.create_job_worker(
-            WorkerConfig(job_type="payment-invocation",
-                          job_timeout_milliseconds=10_000),
-            payment_invocation_handler
-        )
-        camunda_client.create_job_worker(
-            WorkerConfig(job_type="payment-completion",
-                          job_timeout_milliseconds=10_000,
-                          fetch_variables=["orderId"]),
-            payment_completion_handler
-        )
-        camunda_client.create_job_worker(
-            WorkerConfig(job_type="payment-failure",
-                          job_timeout_milliseconds=10_000,
-                          fetch_variables=["orderId"]),
-            payment_failure_handler
         )
         # Keep all workers running until cancelled
         print("Workers starting...")
