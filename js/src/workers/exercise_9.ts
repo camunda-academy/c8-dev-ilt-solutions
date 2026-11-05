@@ -50,30 +50,6 @@ const client = createCamundaClient({
         jobHandler: creditCardCharging
     })
 
-    client.createJobWorker({
-        jobType: 'payment-invocation',
-        jobTimeoutMs: 20000,
-        maxParallelJobs: 1,
-        workerName: 'payment-invoke-worker',
-        jobHandler: startPaymentProcess
-    })
-
-    client.createJobWorker({
-        jobType: 'payment-completion',
-        jobTimeoutMs: 20000,
-        maxParallelJobs: 1,
-        workerName: 'payment-completion-worker',
-        jobHandler: respondToOrderProcess
-    })
-
-    client.createJobWorker({
-        jobType: 'payment-failure',
-        jobTimeoutMs: 20000,
-        maxParallelJobs: 1,
-        workerName: 'payment-failre-worker',
-        jobHandler: respondToOrderProcessFail
-    })
-
 })()
 
 async function creditDeduction(job) {
@@ -112,38 +88,6 @@ async function creditCardCharging(job) {
 
         await job.complete();
     }
-}
-
-async function startPaymentProcess(job) {
-
-    await client.publishMessage({ name: 'paymentRequestMessage',
-	                                variables: job.variables });
-
-    console.log("Starting payment process...");
-
-    await job.complete();
-}
-
-async function respondToOrderProcess(job) {
-
-    await client.publishMessage({ correlationKey: job.variables.orderId,
-                                  name: 'paymentCompletedMessage',
-	                                variables: job.variables });
-
-    console.log("Responding to order process...");
-
-    await job.complete();
-}
-
-async function respondToOrderProcessFail(job) {
-
-    await client.publishMessage({ correlationKey: job.variables.orderId,
-                                  name: 'paymentFailedMessage',
-	                                variables: job.variables });
-
-    console.log("Responding to order process...");
-
-    await job.complete();
 }
 
 function getCustomerCredit(customerId) {
