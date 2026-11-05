@@ -147,6 +147,18 @@ For a new `exercise-NN` branch:
 3. Add the new test class to `AllExercisesTestSuite.java`.
 4. Push the exercise branch and confirm that a GitHub Action run appears for it.
 
+## Publish message connector (exercise 7 onwards)
+
+From exercise 7 the Order and Payment processes send their messages with the Publish message
+connector (job type `io.camunda:sendMessage:1`) instead of job workers. The runtime started by
+`start-runtime.sh` has no Connectors runtime, so `Exercise07Test` to `Exercise12Test` open a small
+stand-in worker, `SendMessageConnectorStub`, that publishes the message the connector would publish
+and completes the job. The tests therefore check the BPMN wiring (message names, correlation keys,
+payloads), not the connector implementation.
+
+Branch names with a suffix, such as `exercise-07-connector`, run the same test class as the plain
+`exercise-NN` branch (here `Exercise07Test`).
+
 ## Current version constraint
 
 The scenario replay API used by these tests currently depends on CPT `8.10.8`, and the

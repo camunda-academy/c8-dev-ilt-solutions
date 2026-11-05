@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import io.camunda.client.CamundaClient;
+import io.camunda.client.api.worker.JobWorker;
 import io.camunda.client.api.response.ProcessInstanceEvent;
 import io.camunda.process.test.api.CamundaAssert;
 import io.camunda.process.test.api.CamundaProcessTest;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -64,7 +67,7 @@ class Exercise08Test {
   // OrderProcess element ids (from assets/Order Process.bpmn).
   private static final String ORDER_START = "StartEvent_1";
   private static final String GENERATE_ORDER_ID = "Activity_1omjax4"; // script task
-  private static final String INVOKE_PAYMENT = "Activity_1s27spe"; // job type payment-invocation
+  private static final String INVOKE_PAYMENT = "Activity_1s27spe"; // Publish message connector (job worker payment-invocation on exercise-07)
   private static final String PAYMENT_COMPLETED_CATCH = "Event_0bpmwgs";
   private static final String ORDER_END = "Event_0ttkttq";
 
@@ -75,10 +78,25 @@ class Exercise08Test {
   private static final String ADD_CARD_FEE = "Activity_1cfafq9"; // script task: openAmount * 1.02
   private static final String CHARGE_CARD = "Activity_16kuby1"; // job type credit-card-charging
   private static final String GATEWAY_MERGE = "Gateway_02roc4u";
-  private static final String PAYMENT_END = "Event_03bvprt"; // job type payment-completion
+  private static final String PAYMENT_END = "Event_03bvprt"; // message end event: Publish message connector (job worker payment-completion on exercise-07)
 
   // Injected by CPT.
   private CamundaClient client;
+
+  // Stands in for the Publish message connector, see SendMessageConnectorStub.
+  private JobWorker connectorStub;
+
+  @BeforeEach
+  void startConnectorStub() {
+    connectorStub = SendMessageConnectorStub.open(client);
+  }
+
+  @AfterEach
+  void stopConnectorStub() {
+    if (connectorStub != null) {
+      connectorStub.close();
+    }
+  }
 
   /**
    * Guard the whole class: if the requested language has no implementation on this branch, skip

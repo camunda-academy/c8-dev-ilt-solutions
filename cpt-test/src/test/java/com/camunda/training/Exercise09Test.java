@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import io.camunda.client.CamundaClient;
+import io.camunda.client.api.worker.JobWorker;
 import io.camunda.client.api.response.ProcessInstanceEvent;
 import io.camunda.process.test.api.CamundaAssert;
 import io.camunda.process.test.api.CamundaProcessTest;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +59,7 @@ class Exercise09Test {
   // OrderProcess element ids (from assets/Order Process.bpmn).
   private static final String ORDER_START = "StartEvent_1";
   private static final String GENERATE_ORDER_ID = "Activity_1omjax4"; // script task
-  private static final String INVOKE_PAYMENT = "Activity_1s27spe"; // job type payment-invocation
+  private static final String INVOKE_PAYMENT = "Activity_1s27spe"; // Publish message connector (job worker payment-invocation on exercise-07)
   private static final String ORDER_GATEWAY = "Gateway_0moymkj"; // event-based gateway
   private static final String PAYMENT_COMPLETED_CATCH = "Event_0ccxxtz";
   private static final String ORDER_COMPLETED_END = "Event_0thk848";
@@ -71,11 +74,26 @@ class Exercise09Test {
   private static final String CHARGE_CARD = "Activity_16kuby1"; // job type credit-card-charging
   private static final String CHARGING_FAILED_BOUNDARY = "Event_1b7ninz"; // catches creditCardChargeError
   private static final String GATEWAY_MERGE = "Gateway_02roc4u";
-  private static final String PAYMENT_END = "Event_03bvprt"; // job type payment-completion
-  private static final String PAYMENT_FAILED_END = "Event_06hvl17"; // job type payment-failure
+  private static final String PAYMENT_END = "Event_03bvprt"; // message end event: Publish message connector (job worker payment-completion on exercise-07)
+  private static final String PAYMENT_FAILED_END = "Event_06hvl17"; // message end event: Publish message connector (job worker payment-failure on exercise-09 and later)
 
   // Injected by CPT.
   private CamundaClient client;
+
+  // Stands in for the Publish message connector, see SendMessageConnectorStub.
+  private JobWorker connectorStub;
+
+  @BeforeEach
+  void startConnectorStub() {
+    connectorStub = SendMessageConnectorStub.open(client);
+  }
+
+  @AfterEach
+  void stopConnectorStub() {
+    if (connectorStub != null) {
+      connectorStub.close();
+    }
+  }
 
   /**
    * Guard the whole class: if the requested language has no implementation on this branch, skip
