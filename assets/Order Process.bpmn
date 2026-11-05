@@ -5,12 +5,19 @@
       <bpmn:outgoing>Flow_0gp98d1</bpmn:outgoing>
     </bpmn:startEvent>
     <bpmn:sequenceFlow id="Flow_0gp98d1" sourceRef="StartEvent_1" targetRef="Activity_1omjax4" />
-    <bpmn:sendTask id="Activity_1s27spe" name="Invoke payment">
+    <bpmn:sendTask id="Activity_1s27spe" name="Invoke payment" zeebe:modelerTemplate="io.camunda.connectors.message.sendtask.v1" zeebe:modelerTemplateVersion="1" zeebe:modelerTemplateIcon="data:image/svg+xml;base64,PHN2ZwogICB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgIHdpZHRoPSIyMDAwIgogICBoZWlnaHQ9IjIwMDAiCiAgIHZpZXdCb3g9IjAgMCAyMDAwIDIwMDAiCiAgIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaWRZTWlkIj4KICA8cGF0aAogICAgIHN0eWxlPSJjb2xvcjojMDAwMDAwIgogICAgIGQ9Im0gMCwyODQgMjAwMCwwIC0xMDAwLDU1NCB6Ii8+CiAgPHBhdGgKICAgICBzdHlsZT0iY29sb3I6IzAwMDAwMCIKICAgICBkPSJtIDAsNDUyIDEwMDAsNTQ4IDEwMDAsLTU0OCAwLDEwOTYgLTIwMDAsMCB6Ii8+Cjwvc3ZnPgo=">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="payment-invocation" />
+        <zeebe:taskDefinition type="io.camunda:sendMessage:1" retries="3" />
         <zeebe:ioMapping>
-          <zeebe:input source="=productPrice" target="orderTotal" />
+          <zeebe:input source="paymentRequestMessage" target="messageName" />
+          <zeebe:input source="={&#10;  &#34;orderTotal&#34;: productPrice,&#10;  &#34;customerId&#34;: customerId,&#10;  &#34;cardNumber&#34;: cardNumber,&#10;  &#34;cvc&#34;: cvc,&#10;  &#34;expiryDate&#34;: expiryDate,&#10;  &#34;orderId&#34;: orderId&#10;}" target="variables" />
+          <zeebe:input source="publish" target="correlationType.type" />
         </zeebe:ioMapping>
+        <zeebe:taskHeaders>
+          <zeebe:header key="elementTemplateVersion" value="1" />
+          <zeebe:header key="elementTemplateId" value="io.camunda.connectors.message.v1" />
+          <zeebe:header key="retryBackoff" value="PT30S" />
+        </zeebe:taskHeaders>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_0i9t8yn</bpmn:incoming>
       <bpmn:outgoing>Flow_1sh54oc</bpmn:outgoing>

@@ -16,9 +16,6 @@ namespace Camunda.Training.CSharp
             // Register the workers against the running client.
             new CreditDeductionWorker(client);
             new CreditCardChargingWorker(client);
-            new PaymentMessageWorker(client);
-            new PaymentCompletionWorker(client);
-            new PaymentFailureWorker(client);
 
             Console.WriteLine("Workers started. Press Ctrl+C to exit.");
 
