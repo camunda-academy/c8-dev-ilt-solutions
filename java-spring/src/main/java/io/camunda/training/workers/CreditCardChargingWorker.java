@@ -4,6 +4,7 @@ import io.camunda.client.annotation.JobWorker;
 import io.camunda.client.annotation.Variable;
 import io.camunda.client.api.response.ActivatedJob;
 import io.camunda.client.api.worker.JobClient;
+import io.camunda.training.exceptions.InvalidExpiryDateException;
 import io.camunda.training.services.CreditCardService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ public class CreditCardChargingWorker {
       creditCardService.chargeAmount(cardNumber, cvc, expiryDate, openAmount);
 
       client.newCompleteCommand(job).send();
-    } catch (IllegalArgumentException illegalArgumentException) {
+    } catch (InvalidExpiryDateException illegalArgumentException) {
       client.newThrowErrorCommand(job)
               .errorCode("creditCardChargeError")
               .send();
