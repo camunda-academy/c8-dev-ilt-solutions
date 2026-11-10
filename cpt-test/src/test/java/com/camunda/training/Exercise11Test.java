@@ -78,6 +78,7 @@ class Exercise11Test {
   // differ from exercise 10's).
   private static final String ORDER_START = "StartEvent_1";
   private static final String GENERATE_ORDER_ID = "Activity_1omjax4"; // script task
+  private static final String LOGIN_TO_PRODUCT_SERVICE = "Activity_1lg7n3q"; // connector service task
   private static final String FETCH_PRODUCT_INFO = "Activity_1uf1u3f"; // connector service task
   private static final String INVOKE_PAYMENT = "Activity_1s27spe"; // Publish message connector (job worker payment-invocation on exercise-07)
   private static final String ORDER_GATEWAY = "Gateway_0moymkj"; // event-based gateway
@@ -152,7 +153,7 @@ class Exercise11Test {
                 "cardNumber", "1234 5678",
                 "cvc", "123",
                 "expiryDate", "09/28"));
-    completeFetchProductInfoJob();
+    completeProductServiceJobs();
 
     // then: OrderProcess takes the success branch off the event-based gateway.
     // hasCompletedElements() first: if the process gets stuck, this pinpoints which element
@@ -162,6 +163,7 @@ class Exercise11Test {
         .hasCompletedElements(
             ORDER_START,
             GENERATE_ORDER_ID,
+            LOGIN_TO_PRODUCT_SERVICE,
             FETCH_PRODUCT_INFO,
             INVOKE_PAYMENT,
             ORDER_GATEWAY,
@@ -206,7 +208,7 @@ class Exercise11Test {
                 "cardNumber", "1234 5678",
                 "cvc", "123",
                 "expiryDate", "2027/09"));
-    completeFetchProductInfoJob();
+    completeProductServiceJobs();
 
     // and: the user reviews the failed payment, fixes the expiry date, and marks it resolved.
     CamundaAssert.assertThat(byProcessId(PAYMENT_PROCESS_ID))
@@ -244,6 +246,7 @@ class Exercise11Test {
         .hasCompletedElements(
             ORDER_START,
             GENERATE_ORDER_ID,
+            LOGIN_TO_PRODUCT_SERVICE,
             FETCH_PRODUCT_INFO,
             INVOKE_PAYMENT,
             ORDER_GATEWAY,
@@ -271,7 +274,7 @@ class Exercise11Test {
                 "cardNumber", "1234 5678",
                 "cvc", "123",
                 "expiryDate", "2027/09"));
-    completeFetchProductInfoJob();
+    completeProductServiceJobs();
 
     // and: the user reviews the failed payment but cannot fix it.
     CamundaAssert.assertThat(byElementId(CHECK_FAILED_PAYMENT)).isCreated();
@@ -306,6 +309,7 @@ class Exercise11Test {
         .hasCompletedElements(
             ORDER_START,
             GENERATE_ORDER_ID,
+            LOGIN_TO_PRODUCT_SERVICE,
             FETCH_PRODUCT_INFO,
             INVOKE_PAYMENT,
             ORDER_GATEWAY,
@@ -342,11 +346,22 @@ class Exercise11Test {
   }
 
   /**
-   * Stands in for the real dummyjson.com connector call (see class javadoc): activates the {@code
-   * io.camunda:http-json:1} job directly and completes it with fixed, fabricated product data,
-   * exercising the {@code productPrice -> orderTotal} ioMapping without any external HTTP call.
+   * Stands in for the two real dummyjson.com connector calls (see class javadoc): "Log in to
+   * product service" returns the access token, "Fetch product info" returns the product. Both
+   * are {@code io.camunda:http-json:1} jobs; the test activates each directly and completes it
+   * with fixed, fabricated values, so the real BPMN wiring is exercised without any external HTTP
+   * call.
    */
-  private void completeFetchProductInfoJob() {
+  private void completeProductServiceJobs() {
+    completeHttpJsonJob(Map.of("productServiceToken", "stubbed-access-token"));
+    completeHttpJsonJob(
+        Map.of(
+            "productName", "Test Product",
+            "productDescription", "A fabricated product for CPT testing",
+            "productPrice", STUBBED_PRODUCT_PRICE));
+  }
+
+  private void completeHttpJsonJob(Map<String, Object> variables) {
     ActivatedJob job =
         client
             .newActivateJobsCommand()
@@ -357,15 +372,7 @@ class Exercise11Test {
             .join()
             .getJobs()
             .get(0);
-    client
-        .newCompleteCommand(job)
-        .variables(
-            Map.of(
-                "productName", "Test Product",
-                "productDescription", "A fabricated product for CPT testing",
-                "productPrice", STUBBED_PRODUCT_PRICE))
-        .send()
-        .join();
+    client.newCompleteCommand(job).variables(variables).send().join();
   }
 
   /**
