@@ -72,13 +72,13 @@
       <bpmn:incoming>Flow_0b4sb6y</bpmn:incoming>
       <bpmn:messageEventDefinition id="MessageEventDefinition_1si8r93" />
     </bpmn:endEvent>
-    <bpmn:boundaryEvent id="Event_1605nvk" name="Invalid expiry date" attachedToRef="Activity_16kuby1">
+    <bpmn:boundaryEvent id="Event_1605nvk" name="Charging failed" attachedToRef="Activity_16kuby1">
       <bpmn:outgoing>Flow_049390o</bpmn:outgoing>
       <bpmn:errorEventDefinition id="ErrorEventDefinition_1drgd1g" errorRef="Error_0olt2wv" />
     </bpmn:boundaryEvent>
     <bpmn:sequenceFlow id="Flow_15d0kch" sourceRef="Activity_16kuby1" targetRef="Gateway_02roc4u" />
     <bpmn:sequenceFlow id="Flow_1qqxzyh" name="Yes" sourceRef="Gateway_1xthnkz" targetRef="Gateway_02roc4u">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount &lt;= 0</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount = 0</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_056mvh2" sourceRef="Gateway_02roc4u" targetRef="Event_03bvprt" />
     <bpmn:sequenceFlow id="Flow_15c9io5" sourceRef="Activity_1hu6sex" targetRef="Gateway_1xthnkz" />
@@ -94,7 +94,7 @@
       <bpmn:outgoing>Flow_0fp64fj</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="Flow_0b4sb6y" name="No" sourceRef="Gateway_0kf89ck" targetRef="Event_0rols7b">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=not(errorResolved)</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=errorResolved = false</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:exclusiveGateway id="Gateway_00z7p4e">
       <bpmn:incoming>Flow_08yvuv1</bpmn:incoming>
@@ -103,7 +103,7 @@
     </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="Flow_03p0gza" sourceRef="Gateway_00z7p4e" targetRef="Activity_16kuby1" />
     <bpmn:sequenceFlow id="Flow_0fp64fj" name="Yes" sourceRef="Gateway_0kf89ck" targetRef="Gateway_00z7p4e">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=errorResolved</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=errorResolved = true</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:userTask id="Activity_1884gkf" name="Check failed payment data">
       <bpmn:extensionElements>
