@@ -85,7 +85,7 @@
       <bpmn:messageEventDefinition id="MessageEventDefinition_12p9lhh" messageRef="Message_3cqm66b" />
     </bpmn:startEvent>
     <bpmn:sequenceFlow id="Flow_1qqxzyh" name="Yes" sourceRef="Gateway_1xthnkz" targetRef="Gateway_02roc4u">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount &lt;= 0</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount = 0</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
   </bpmn:process>
   <bpmn:message id="Message_3cqm66b" name="paymentRequestMessage" />
