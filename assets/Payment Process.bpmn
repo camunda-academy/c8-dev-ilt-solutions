@@ -8,7 +8,7 @@
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount &gt; 0</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_1qqxzyh" name="Yes" sourceRef="Gateway_1xthnkz" targetRef="Gateway_02roc4u">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount &lt;= 0</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=openAmount = 0</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_15c9io5" sourceRef="Activity_1hu6sex" targetRef="Gateway_1xthnkz" />
     <bpmn:sequenceFlow id="Flow_0b7gmku" sourceRef="Event_19qu0oi" targetRef="Activity_1hu6sex" />
