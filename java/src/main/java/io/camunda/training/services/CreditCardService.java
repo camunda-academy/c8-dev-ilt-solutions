@@ -1,5 +1,6 @@
 package io.camunda.training.services;
 
+import io.camunda.training.exceptions.InvalidExpiryDateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,7 @@ public class CreditCardService {
 
             logger.info("Payment completed");
         } else {
-            throw new IllegalArgumentException("Expiry date invalid: " + expiryDate);
+            throw new InvalidExpiryDateException("Expiry date invalid: " + expiryDate);
         }
     }
 

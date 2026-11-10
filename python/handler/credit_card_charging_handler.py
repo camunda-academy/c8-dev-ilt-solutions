@@ -1,7 +1,7 @@
 # credit_card_charging_handler.py
 
 from camunda_orchestration_sdk import ConnectedJobContext, JobFailRequest, JobFailure
-from services.credit_card_service import charge_credit_card
+from services.credit_card_service import charge_credit_card, InvalidExpiryDateError
 
 async def credit_card_charging_handler(job: ConnectedJobContext) -> dict[str, object]:
     # Job is already activated by the worker — handler entry = job locked
@@ -11,7 +11,7 @@ async def credit_card_charging_handler(job: ConnectedJobContext) -> dict[str, ob
     try:
         charge_credit_card(variables["cardNumber"], variables["cvc"], variables["expiryDate"], variables["openAmount"])
         return
-    except ValueError as e:
+    except InvalidExpiryDateError as e:
         print(e)
-        raise JobFailure(str(e), job.retries - 1, 2000)
+        raise JobFailure(str(e), 0, 0)
     
