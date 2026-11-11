@@ -51,11 +51,6 @@
       <bpmn:outgoing>Flow_08yvuv1</bpmn:outgoing>
     </bpmn:scriptTask>
   </bpmn:process>
-  <bpmn:message id="Message_14p9pmf" name="paymentReceived">
-    <bpmn:extensionElements>
-      <zeebe:subscription correlationKey="=orderId" />
-    </bpmn:extensionElements>
-  </bpmn:message>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="PaymentProcess">
       <bpmndi:BPMNShape id="Gateway_02roc4u_di" bpmnElement="Gateway_02roc4u" isMarkerVisible="true">
